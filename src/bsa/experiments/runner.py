@@ -12,6 +12,7 @@ from ..common.types import Episode, EpisodeStep, Action, Observation
 from ..agents.helper import ReactiveHelper, GoalOnlyHelper, BeliefSensitiveHelper
 from ..envs.gridhouse import GridHouseEnvironment, GridHouseEpisodeGenerator
 from ..envs.gridhouse.tasks import get_task, list_tasks
+from .evaluator import EpisodeEvaluator
 
 
 class ExperimentRunner:
@@ -52,6 +53,9 @@ class ExperimentRunner:
         
         # Results storage
         self.results: List[Dict[str, Any]] = []
+        
+        # Episode evaluator for comprehensive metrics
+        self.evaluator = EpisodeEvaluator()
 
     def run_experiment(self) -> Dict[str, Any]:
         """Run full experiment.
@@ -90,15 +94,19 @@ class ExperimentRunner:
                         episode_generator, condition, run_idx
                     )
                     
-                    # Evaluate episode with helper agent
-                    metrics = self._evaluate_episode(episode, helper_agent, model_name, condition, run_idx)
+                    # Evaluate episode with helper agent (use comprehensive evaluator)
+                    metrics = self.evaluator.evaluate_episode(episode, helper_agent)
+                    
+                    # Add experiment metadata
+                    metrics.update({
+                        "model": model_name,
+                        "condition": condition,
+                        "run": run_idx,
+                    })
                     
                     # Store results
                     result = {
                         "experiment_name": self.experiment_name,
-                        "model": model_name,
-                        "condition": condition,
-                        "run": run_idx,
                         "episode_id": episode.episode_id,
                         "goal_id": episode.goal_id,
                         "tau": episode.tau,
