@@ -97,16 +97,12 @@ class ExperimentRunner:
                     # Evaluate episode with helper agent (use comprehensive evaluator)
                     metrics = self.evaluator.evaluate_episode(episode, helper_agent)
                     
-                    # Add experiment metadata
-                    metrics.update({
-                        "model": model_name,
-                        "condition": condition,
-                        "run": run_idx,
-                    })
-                    
                     # Store results
                     result = {
                         "experiment_name": self.experiment_name,
+                        "model": model_name,
+                        "condition": condition,
+                        "run": run_idx,
                         "episode_id": episode.episode_id,
                         "goal_id": episode.goal_id,
                         "tau": episode.tau,
