@@ -59,10 +59,10 @@ def create_venv(venv_path: Path, python_cmd: Optional[str] = None) -> bool:
 
     try:
         subprocess.run(cmd, check=True)
-        print("✓ Virtual environment created")
+        print("[OK] Virtual environment created")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"✗ Failed to create virtual environment: {e}")
+        print(f"[FAIL] Failed to create virtual environment: {e}")
         return False
 
 
@@ -151,18 +151,18 @@ def install_dependencies(venv_python: Path, include_virtualhome: bool = True) ->
                     text=True,
                 )
                 if result.returncode == 0:
-                    print("✓ VirtualHome installed and verified")
+                    print("[OK] VirtualHome installed and verified")
                 else:
-                    print("⚠ VirtualHome installed but import failed")
+                    print("[WARN] VirtualHome installed but import failed")
                     print(f"  Error: {result.stderr}")
             except subprocess.CalledProcessError as e:
-                print("⚠ VirtualHome installation failed (will use GridHouse fallback)")
+                print("[WARN] VirtualHome installation failed (will use GridHouse fallback)")
                 print(f"  Error: {e}")
         
-        print("✓ Dependencies installed")
+        print("[OK] Dependencies installed")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"✗ Failed to install dependencies: {e}")
+        print(f"[FAIL] Failed to install dependencies: {e}")
         return False
 
 
@@ -180,21 +180,31 @@ def main():
     # Check if venv already exists
     if venv_path.exists():
         print(f"Virtual environment exists at {venv_path}")
-        response = input("Recreate? (y/n): ").strip().lower()
-        if response == "y":
-            import shutil
-            shutil.rmtree(venv_path)
+        # Check if running in non-interactive mode
+        non_interactive = not sys.stdin.isatty() or os.getenv("NON_INTERACTIVE", "").lower() == "true"
+        
+        if non_interactive:
+            print("Using existing virtual environment (non-interactive mode)")
         else:
-            print("Using existing virtual environment")
-            venv_python = get_venv_python(venv_path)
-            if venv_python.exists():
-                print(f"Python: {venv_python}")
-                print("\nTo activate:")
-                if sys.platform == "win32":
-                    print(f"  {venv_path}\\Scripts\\activate")
+            try:
+                response = input("Recreate? (y/n): ").strip().lower()
+                if response == "y":
+                    import shutil
+                    shutil.rmtree(venv_path)
                 else:
-                    print(f"  source {venv_path}/bin/activate")
-                return 0
+                    print("Using existing virtual environment")
+            except (EOFError, KeyboardInterrupt):
+                print("Using existing virtual environment (non-interactive mode)")
+        
+        venv_python = get_venv_python(venv_path)
+        if venv_python.exists():
+            print(f"Python: {venv_python}")
+            print("\nTo activate:")
+            if sys.platform == "win32":
+                print(f"  {venv_path}\\Scripts\\activate")
+            else:
+                print(f"  source {venv_path}/bin/activate")
+            return 0
 
     # Check Python version compatibility
     # VirtualHome works best with Python 3.9-3.10, but we'll try current Python first
@@ -219,7 +229,7 @@ def main():
     # Get venv Python
     venv_python = get_venv_python(venv_path)
     if not venv_python.exists():
-        print(f"✗ Python executable not found at {venv_python}")
+        print(f"[FAIL] Python executable not found at {venv_python}")
         return 1
 
     # Install dependencies
