@@ -45,7 +45,7 @@
 
 **Goal**: Implement VirtualHome adapter with task programs and observability
 
-**Status**: Pending
+**Status**: Complete
 
 **Tasks**:
 - VirtualHome adapter implementation
