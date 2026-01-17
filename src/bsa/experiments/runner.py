@@ -244,7 +244,8 @@ class ExperimentRunner:
                 # Check if false belief detected at this step
                 if not false_belief_detected:
                     # Use helper's detect_false_belief method
-                    if helper_agent.detect_false_belief(helper_obs, step):
+                    # BeliefSensitiveHelper needs episode_step with true_locations
+                    if helper_agent.detect_false_belief(helper_obs, episode_step=step):
                         false_belief_detected = True
                         detection_latency = step.timestep
             
