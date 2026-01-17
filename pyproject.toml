@@ -7,7 +7,7 @@ name = "belief-sensitive-assistance"
 version = "0.1.0"
 description = "Research-grade repository for belief-sensitive embodied assistance under false belief"
 readme = "README.md"
-requires-python = ">=3.9,<3.12"  # Python 3.9-3.11 for VirtualHome compatibility
+requires-python = ">=3.9"  # Python 3.9+ (3.9-3.11 recommended for VirtualHome, but 3.12 works for GridHouse)
 license = {text = "MIT"}
 authors = [
     {name = "Research Team"}
