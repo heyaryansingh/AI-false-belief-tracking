@@ -136,3 +136,8 @@ class GridHouseEpisodeGenerator:
             metadata={"max_steps": max_steps, "occlusion_severity": self.occlusion_severity},
         )
 
+    def _apply_intervention(self, task, human_belief_locations: Dict) -> None:
+        """Apply false-belief intervention (stub - will be implemented in plan 01-02)."""
+        # Stub implementation - will be completed in next plan
+        pass
+
