@@ -243,23 +243,10 @@ class ExperimentRunner:
             if model_name == "belief_pf":
                 # Check if false belief detected at this step
                 if not false_belief_detected:
-                    # Check if helper detects false belief
-                    # Compare helper's belief about object locations vs. true locations
-                    belief_state = helper_agent.get_belief_state()
-                    if belief_state:
-                        # Check if any object has false belief
-                        for obj_id, true_loc in step.true_object_locations.items():
-                            # Get helper's belief about this object
-                            # (Simplified check - in practice would use belief inference)
-                            if obj_id in step.human_belief_object_locations:
-                                human_belief_loc = step.human_belief_object_locations[obj_id]
-                                if true_loc.room_id != human_belief_loc.room_id:
-                                    # False belief exists
-                                    # Check if helper detected it (simplified)
-                                    if helper_agent.detect_false_belief(helper_obs, step):
-                                        false_belief_detected = True
-                                        detection_latency = step.timestep
-                                        break
+                    # Use helper's detect_false_belief method
+                    if helper_agent.detect_false_belief(helper_obs, step):
+                        false_belief_detected = True
+                        detection_latency = step.timestep
             
             # Count interventions (actions that are not WAIT)
             if helper_action != Action.WAIT:
