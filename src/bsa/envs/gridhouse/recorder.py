@@ -51,6 +51,22 @@ class EpisodeRecorder:
         # Create output directory if needed
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
+        def convert_to_json_serializable(obj):
+            """Convert numpy types and other non-serializable objects to native Python types."""
+            import numpy as np
+            if isinstance(obj, (np.integer, np.int64, np.int32)):
+                return int(obj)
+            elif isinstance(obj, (np.floating, np.float64, np.float32)):
+                return float(obj)
+            elif isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, dict):
+                return {k: convert_to_json_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_to_json_serializable(item) for item in obj]
+            else:
+                return obj
+
         with open(output_path, "w") as f:
             # Write episode metadata as first line
             metadata = {
@@ -58,7 +74,7 @@ class EpisodeRecorder:
                 "goal_id": episode.goal_id,
                 "tau": episode.tau,
                 "intervention_type": episode.intervention_type,
-                "metadata": episode.metadata,
+                "metadata": convert_to_json_serializable(episode.metadata),
                 "type": "episode_metadata",
             }
             f.write(json.dumps(metadata) + "\n")
@@ -66,6 +82,7 @@ class EpisodeRecorder:
             # Write each step as a line
             for step in episode.steps:
                 step_dict = self._step_to_dict(step, episode)
+                step_dict = convert_to_json_serializable(step_dict)
                 f.write(json.dumps(step_dict) + "\n")
 
     def _step_to_dict(self, step: EpisodeStep, episode: Episode) -> Dict[str, Any]:
