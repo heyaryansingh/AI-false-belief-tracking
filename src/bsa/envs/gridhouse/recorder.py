@@ -69,14 +69,14 @@ class EpisodeRecorder:
 
         with open(output_path, "w") as f:
             # Write episode metadata as first line
-            metadata = {
+            metadata = convert_to_json_serializable({
                 "episode_id": episode.episode_id,
                 "goal_id": episode.goal_id,
                 "tau": episode.tau,
                 "intervention_type": episode.intervention_type,
-                "metadata": convert_to_json_serializable(episode.metadata),
+                "metadata": episode.metadata,
                 "type": "episode_metadata",
-            }
+            })
             f.write(json.dumps(metadata) + "\n")
 
             # Write each step as a line
