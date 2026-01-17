@@ -124,7 +124,12 @@ class ReportGenerator:
         if "{{FIGURES}}" in report:
             figure_lines = []
             for fig_path in self.figure_paths:
-                rel_path = fig_path.relative_to(self.output_path.parent)
+                # Compute relative path from report directory
+                try:
+                    rel_path = Path(fig_path).relative_to(self.output_path.parent)
+                except ValueError:
+                    # If not in subpath, use absolute path or just filename
+                    rel_path = Path(fig_path).name
                 figure_lines.append(f"![{fig_path.stem}]({rel_path})")
             figures_text = "\n\n".join(figure_lines) if figure_lines else "*No figures available*"
             report = report.replace("{{FIGURES}}", figures_text)
@@ -134,7 +139,12 @@ class ReportGenerator:
             table_lines = []
             for table_path in self.table_paths:
                 if table_path.suffix == ".md":
-                    rel_path = table_path.relative_to(self.output_path.parent)
+                    # Compute relative path from report directory
+                    try:
+                        rel_path = Path(table_path).relative_to(self.output_path.parent)
+                    except ValueError:
+                        # If not in subpath, use absolute path or just filename
+                        rel_path = Path(table_path).name
                     table_lines.append(f"See [{table_path.stem}]({rel_path})")
             tables_text = "\n\n".join(table_lines) if table_lines else "*No tables available*"
             report = report.replace("{{TABLES}}", tables_text)
