@@ -447,16 +447,41 @@ def analyze_results(config: Dict[str, Any], input_dir: Optional[Path] = None) ->
         print(f"  [FAIL] Aggregation failed: {e}")
         return
     
-    # Steps 2-4 will be implemented in later plans
+    # Step 2: Generate plots
     print("\n[2/4] Generating plots...")
-    print("  [INFO] Plot generation will be implemented in Plan 05-02")
+    try:
+        from ..viz.plots import generate_plots
+        figure_paths = generate_plots(config, aggregated_df=agg_df)
+        print(f"  [OK] Generated {len(figure_paths)} plots")
+    except Exception as e:
+        print(f"  [FAIL] Plot generation failed: {e}")
+        figure_paths = []
     
+    # Step 3: Generate tables
     print("\n[3/4] Generating tables...")
-    print("  [INFO] Table generation will be implemented in Plan 05-03")
+    try:
+        from .tables import generate_tables
+        table_paths = generate_tables(config, aggregated_df=agg_df)
+        print(f"  [OK] Generated {len(table_paths)} table files")
+    except Exception as e:
+        print(f"  [FAIL] Table generation failed: {e}")
+        table_paths = []
     
+    # Step 4: Generate report
     print("\n[4/4] Generating report...")
-    print("  [INFO] Report generation will be implemented in Plan 05-04")
+    try:
+        from .report import generate_report
+        report_path = generate_report(
+            config,
+            aggregated_df=agg_df,
+            summary_stats=summary,
+            figure_paths=figure_paths,
+            table_paths=table_paths,
+        )
+        print(f"  [OK] Report generated: {report_path}")
+    except Exception as e:
+        print(f"  [FAIL] Report generation failed: {e}")
     
     print("\n" + "=" * 70)
-    print("Analysis complete (aggregation only - plots/tables/report pending)")
+    print("Analysis pipeline complete!")
     print("=" * 70)

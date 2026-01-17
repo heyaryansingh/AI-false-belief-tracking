@@ -124,7 +124,7 @@ def run_experiments(config: Dict[str, Any], output_dir: Optional[Path] = None) -
 
 
 def reproduce(small: bool = False) -> None:
-    """Full reproduction pipeline.
+    """Full reproduction pipeline: generate → run → analyze.
 
     Args:
         small: If True, use small dataset for CI/testing
@@ -136,6 +136,7 @@ def reproduce(small: bool = False) -> None:
     # Load configs
     generator_config_path = Path("configs/generator/default.yaml")
     experiment_config_path = Path("configs/experiments/exp_main.yaml")
+    analysis_config_path = Path("configs/analysis/plots.yaml")
     
     if not generator_config_path.exists():
         print(f"Error: Generator config not found: {generator_config_path}")
