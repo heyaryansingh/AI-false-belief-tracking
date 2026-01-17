@@ -189,18 +189,33 @@ def reproduce(small: bool = False) -> None:
         print(f"  [FAIL] Experiment execution failed: {e}")
         return
     
-    # Step 3: Analyze (will be implemented in Phase 5)
-    print("\n[3/3] Analysis...")
-    print("  Analysis will be implemented in Phase 5")
-    print("  Run: bsa analyze --config configs/analysis/plots.yaml")
+    # Step 3: Analyze results
+    print("\n[3/3] Analyzing results...")
+    analysis_config_path = Path("configs/analysis/plots.yaml")
+    
+    if not analysis_config_path.exists():
+        print(f"Warning: Analysis config not found: {analysis_config_path}")
+        print("Skipping analysis step")
+    else:
+        try:
+            analysis_config = load_config(analysis_config_path)
+            from ..analysis.aggregate import analyze_results
+            analyze_results(analysis_config)
+        except Exception as e:
+            print(f"Error during analysis: {e}")
+            import traceback
+            traceback.print_exc()
     
     print("\n" + "=" * 70)
-    print("Reproduction complete!")
+    print("Full reproduction pipeline complete!")
     print("=" * 70)
     print("\nResults saved to:")
     print("  - Episodes: data/episodes/")
     print("  - Metrics: results/metrics/")
     print("  - Manifests: results/manifests/")
+    print("  - Figures: results/figures/")
+    print("  - Tables: results/tables/")
+    print("  - Report: results/reports/report.md")
 
 
 def run_sweep(config: Dict[str, Any], output_dir: Optional[Path] = None) -> None:
