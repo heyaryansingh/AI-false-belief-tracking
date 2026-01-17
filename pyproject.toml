@@ -47,7 +47,7 @@ dev = [
     "black>=23.7.0",
 ]
 virtualhome = [
-    "virtualhome>=0.1.0",  # Will need to check actual package name
+    "virtualhome>=2.3.0",  # VirtualHome simulator from PyPI
 ]
 
 [project.scripts]
