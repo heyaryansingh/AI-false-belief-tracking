@@ -168,9 +168,9 @@ def reproduce(small: bool = False) -> None:
     print("\n[1/3] Generating episodes...")
     try:
         generate_episodes(generator_config)
-        print("  ✓ Episode generation complete")
+        print("  [OK] Episode generation complete")
     except Exception as e:
-        print(f"  ✗ Episode generation failed: {e}")
+        print(f"  [FAIL] Episode generation failed: {e}")
         return
     
     # Step 2: Run experiments
@@ -183,9 +183,9 @@ def reproduce(small: bool = False) -> None:
             exp_config = experiment_config
         
         run_experiments(exp_config)
-        print("  ✓ Experiment execution complete")
+        print("  [OK] Experiment execution complete")
     except Exception as e:
-        print(f"  ✗ Experiment execution failed: {e}")
+        print(f"  [FAIL] Experiment execution failed: {e}")
         return
     
     # Step 3: Analyze (will be implemented in Phase 5)
