@@ -13,6 +13,7 @@ from ..agents.helper import ReactiveHelper, GoalOnlyHelper, BeliefSensitiveHelpe
 from ..envs.gridhouse import GridHouseEnvironment, GridHouseEpisodeGenerator
 from ..envs.gridhouse.tasks import get_task, list_tasks
 from .evaluator import EpisodeEvaluator
+from .manifest import generate_manifest, save_manifest
 
 
 class ExperimentRunner:
@@ -117,11 +118,22 @@ class ExperimentRunner:
         # Save results
         self._save_results()
         
+        # Generate and save manifest
+        manifest_dir = self.output_dir.parent / "manifests" / self.experiment_name
+        manifest_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = manifest_dir / "manifest.json"
+        
+        # Generate manifest (config_path would need to be passed in __init__)
+        manifest = generate_manifest(self.config)
+        save_manifest(manifest, manifest_path)
+        print(f"Manifest saved to: {manifest_path}")
+        
         # Return summary
         return {
             "experiment_name": self.experiment_name,
             "num_results": len(self.results),
             "output_dir": str(self.output_dir),
+            "manifest_path": str(manifest_path),
         }
 
     def _create_helper_agent(self, model_name: str):
