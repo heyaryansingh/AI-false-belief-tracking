@@ -27,13 +27,14 @@ class AnalysisAggregator:
         """Load results from Parquet file(s).
 
         Args:
-            input_path: Path to single Parquet file
-            input_dir: Directory containing Parquet files (loads all)
+            input_path: Path to single Parquet file (str or Path)
+            input_dir: Directory containing Parquet files (str or Path, loads all)
 
         Returns:
             DataFrame with all results
         """
         if input_path:
+            input_path = Path(input_path)
             if not input_path.exists():
                 raise FileNotFoundError(f"Results file not found: {input_path}")
             return pd.read_parquet(input_path)
@@ -141,9 +142,14 @@ class AnalysisAggregator:
             
             # Compute 95% confidence interval
             if len(values) > 1:
-                ci = stats.t.interval(0.95, len(values) - 1, loc=mean, scale=stats.sem(values))
-                ci_lower = float(ci[0])
-                ci_upper = float(ci[1])
+                sem = stats.sem(values)
+                if not np.isnan(sem) and sem > 0:
+                    ci = stats.t.interval(0.95, len(values) - 1, loc=mean, scale=sem)
+                    ci_lower = float(ci[0])
+                    ci_upper = float(ci[1])
+                else:
+                    ci_lower = mean
+                    ci_upper = mean
             else:
                 ci_lower = mean
                 ci_upper = mean
