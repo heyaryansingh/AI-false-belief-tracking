@@ -9,6 +9,7 @@ from ...common.seeding import get_rng
 from ...agents.human import ScriptedHumanAgent
 from .env import GridHouseEnvironment
 from .tasks import get_task, list_tasks
+from .recorder import EpisodeRecorder
 
 
 class GridHouseEpisodeGenerator:
@@ -42,6 +43,8 @@ class GridHouseEpisodeGenerator:
         goal_id: Optional[str] = None,
         tau: Optional[int] = None,
         intervention_type: Optional[str] = None,
+        save_path: Optional[Path] = None,
+        format: str = "parquet",
     ) -> Episode:
         """Generate a single episode.
 
@@ -163,7 +166,7 @@ class GridHouseEpisodeGenerator:
             "num_steps": len(steps),
         }
 
-        return Episode(
+        episode = Episode(
             episode_id=f"episode_{self.rng.integers(0, 1000000)}",
             goal_id=goal_id,
             tau=tau,
@@ -171,6 +174,59 @@ class GridHouseEpisodeGenerator:
             steps=steps,
             metadata=metadata,
         )
+
+        # Save if path provided
+        if save_path:
+            recorder = EpisodeRecorder()
+            recorder.save_episode(episode, save_path, format=format)
+
+        return episode
+
+    def generate_episodes(
+        self,
+        num_episodes: int,
+        output_dir: Path,
+        format: str = "parquet",
+        goal_distribution: Optional[List[str]] = None,
+    ) -> List[Episode]:
+        """Generate multiple episodes and save them.
+
+        Args:
+            num_episodes: Number of episodes to generate
+            output_dir: Directory to save episodes
+            format: Format to use ('parquet' or 'jsonl')
+            goal_distribution: List of goal IDs to sample from (if None, uses all tasks)
+
+        Returns:
+            List of generated episodes
+        """
+        output_dir.mkdir(parents=True, exist_ok=True)
+        recorder = EpisodeRecorder()
+        episodes = []
+
+        if goal_distribution is None:
+            goal_distribution = list_tasks()
+
+        ext = "parquet" if format == "parquet" else "jsonl"
+
+        for i in range(num_episodes):
+            # Sample goal from distribution
+            goal_id = self.rng.choice(goal_distribution)
+
+            # Generate episode
+            episode = self.generate_episode(goal_id=goal_id)
+
+            # Save episode
+            output_path = output_dir / f"episode_{episode.episode_id}.{ext}"
+            recorder.save_episode(episode, output_path, format=format)
+
+            episodes.append(episode)
+
+            # Progress logging
+            if (i + 1) % 10 == 0:
+                print(f"Generated {i + 1}/{num_episodes} episodes")
+
+        return episodes
 
     def _apply_intervention(self, task, human_belief_locations: Dict) -> None:
         """Apply false-belief intervention.
