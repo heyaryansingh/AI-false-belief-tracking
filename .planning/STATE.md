@@ -2,7 +2,7 @@
 
 ## Current Position
 
-**Phase**: 1 (Core Interfaces + GridHouse)
+**Phase**: 2 (Helper Models)
 **Status**: Complete - All plans executed
 
 ## Accumulated Decisions
@@ -24,12 +24,14 @@ None - Phase 1 complete
 
 ## Next Phase Readiness
 
-Phase 1 complete:
-1. ✓ Episode generator belief tracking logic
-2. ✓ Human agent scripted policies
-3. ✓ Episode serialization
+Phase 2 complete:
+1. ✓ Base helper interface
+2. ✓ Reactive helper baseline
+3. ✓ Goal inference + Goal-only helper
+4. ✓ Particle filter + Likelihood models
+5. ✓ Belief inference + Belief-sensitive helper + Intervention policy
 
-Ready for Phase 2 (Helper Models).
+Ready for Phase 3 (VirtualHome Backend) or Phase 4 (Experiment Harness).
 
 ## Alignment Status
 
