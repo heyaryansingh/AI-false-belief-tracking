@@ -3,12 +3,25 @@ analysis:
   output_dir: results/figures
 
 plots:
-  - type: belief_timeline
-    filename: belief_timeline.png
   - type: detection_auroc
     filename: detection_auroc.png
+    title: "False-Belief Detection AUROC by Model"
+    xlabel: "Model"
+    ylabel: "AUROC"
   - type: task_performance
     filename: task_performance.png
+    title: "Task Performance Comparison"
+  - type: intervention_quality
+    filename: intervention_quality.png
+    title: "Intervention Quality Metrics"
+  - type: belief_timeline
+    filename: belief_timeline.png
+    title: "Belief Timeline"
+  - type: ablation_curves
+    filename: ablation_particles.png
+    parameter: num_particles
+    metric: false_belief_detection_auroc_mean
+    title: "Ablation: Number of Particles"
 
 report:
   output: results/reports/report.md
