@@ -4,7 +4,7 @@
 
 **Goal**: Complete GridHouse simulator with episode generation and human agent policies
 
-**Status**: In Progress (foundation complete, core logic stubbed)
+**Status**: Complete
 
 **Tasks**:
 - Complete episode generator with belief tracking and intervention logic
