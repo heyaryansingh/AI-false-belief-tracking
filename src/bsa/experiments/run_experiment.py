@@ -138,38 +138,68 @@ def reproduce(small: bool = False) -> None:
     experiment_config_path = Path("configs/experiments/exp_main.yaml")
     
     if not generator_config_path.exists():
-        print(f"Warning: Generator config not found: {generator_config_path}")
+        print(f"Error: Generator config not found: {generator_config_path}")
+        print("Please ensure configs/generator/default.yaml exists")
         return
     
     if not experiment_config_path.exists():
-        print(f"Warning: Experiment config not found: {experiment_config_path}")
+        print(f"Error: Experiment config not found: {experiment_config_path}")
+        print("Please ensure configs/experiments/exp_main.yaml exists")
         return
     
     # Load configs
-    generator_config = load_config(generator_config_path)
-    experiment_config = load_config(experiment_config_path)
+    try:
+        generator_config = load_config(generator_config_path)
+        experiment_config = load_config(experiment_config_path)
+    except Exception as e:
+        print(f"Error loading configs: {e}")
+        return
     
     # Adjust for small dataset
     if small:
         print("Using small dataset for CI/testing")
         generator_config["generator"]["num_episodes"] = 10
-        experiment_config["experiment"]["num_runs"] = 2
+        if "experiment" in experiment_config:
+            experiment_config["experiment"]["num_runs"] = 2
+        else:
+            experiment_config["num_runs"] = 2
     
     # Step 1: Generate episodes
     print("\n[1/3] Generating episodes...")
-    generate_episodes(generator_config)
+    try:
+        generate_episodes(generator_config)
+        print("  ✓ Episode generation complete")
+    except Exception as e:
+        print(f"  ✗ Episode generation failed: {e}")
+        return
     
     # Step 2: Run experiments
     print("\n[2/3] Running experiments...")
-    run_experiments(experiment_config)
+    try:
+        # Extract experiment config from loaded config
+        if "experiment" in experiment_config:
+            exp_config = experiment_config["experiment"]
+        else:
+            exp_config = experiment_config
+        
+        run_experiments(exp_config)
+        print("  ✓ Experiment execution complete")
+    except Exception as e:
+        print(f"  ✗ Experiment execution failed: {e}")
+        return
     
     # Step 3: Analyze (will be implemented in Phase 5)
     print("\n[3/3] Analysis...")
     print("  Analysis will be implemented in Phase 5")
+    print("  Run: bsa analyze --config configs/analysis/plots.yaml")
     
     print("\n" + "=" * 70)
     print("Reproduction complete!")
     print("=" * 70)
+    print("\nResults saved to:")
+    print("  - Episodes: data/episodes/")
+    print("  - Metrics: results/metrics/")
+    print("  - Manifests: results/manifests/")
 
 
 def run_sweep(config: Dict[str, Any], output_dir: Optional[Path] = None) -> None:
