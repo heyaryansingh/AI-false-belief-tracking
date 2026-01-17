@@ -49,6 +49,12 @@ results/*
 virtualhome/
 virtualhome_env/
 
+# Virtual environment
+venv/
+env/
+ENV/
+.venv/
+
 # OS
 .DS_Store
 Thumbs.db

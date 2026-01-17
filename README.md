@@ -18,19 +18,38 @@ This repository implements a system where a "human" agent performs long-horizon 
 
 ### Installation
 
+**Recommended: Use virtual environment for VirtualHome compatibility**
+
 ```bash
 # Clone repository
 git clone <repo-url>
 cd belief-assistance-research
 
-# Install package
-pip install -e .
+# Setup virtual environment (Python 3.9-3.11 recommended)
+python scripts/setup_venv.py
 
-# Setup VirtualHome (optional)
-bash scripts/setup_virtualhome.sh
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On Linux/Mac:
+source venv/bin/activate
+
+# Verify installation
+python -c "from src.bsa.envs.gridhouse import GridHouseEnvironment; print('GridHouse OK')"
+python -c "from src.bsa.envs.virtualhome import VirtualHomeEnvironment; print('VirtualHome OK')"  # Optional
 
 # Run minimal reproduction (GridHouse only)
 make reproduce
+```
+
+**Alternative: Direct installation (may have VirtualHome compatibility issues)**
+
+```bash
+# Install package
+pip install -e .
+
+# Setup VirtualHome (optional, requires Python 3.9-3.11)
+python scripts/install_virtualhome.py
 ```
 
 ### Basic Usage

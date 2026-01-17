@@ -7,7 +7,7 @@ name = "belief-sensitive-assistance"
 version = "0.1.0"
 description = "Research-grade repository for belief-sensitive embodied assistance under false belief"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.9,<3.12"  # Python 3.9-3.11 for VirtualHome compatibility
 license = {text = "MIT"}
 authors = [
     {name = "Research Team"}
@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "numpy>=1.24.0",
+    "numpy>=1.24.0,<2.0.0",  # Pin to NumPy 1.x for VirtualHome compatibility
     "pandas>=2.0.0",
     "scipy>=1.10.0",
     "matplotlib>=3.7.0",
@@ -48,6 +48,8 @@ dev = [
 ]
 virtualhome = [
     "virtualhome>=2.3.0",  # VirtualHome simulator from PyPI
+    "numpy>=1.19.3,<2.0.0",  # Pin NumPy for VirtualHome compatibility
+    "networkx>=2.3",  # VirtualHome dependency
 ]
 
 [project.scripts]

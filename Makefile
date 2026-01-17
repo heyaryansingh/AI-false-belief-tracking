@@ -15,12 +15,25 @@ help:
 	@echo "  lint           - Run linters"
 	@echo "  clean          - Clean generated files"
 
-setup: install
-	@echo "Setting up VirtualHome..."
-	@bash scripts/setup_virtualhome.sh || echo "VirtualHome setup failed, GridHouse fallback available"
+setup: venv
+	@echo "Virtual environment setup complete!"
+	@echo "Activate with: source venv/bin/activate (Linux/Mac) or venv\Scripts\activate (Windows)"
+
+venv:
+	@echo "Setting up virtual environment..."
+	@python scripts/setup_venv.py
 
 install:
 	pip install -e .
+
+install-venv:
+	@if [ -d "venv" ]; then \
+		echo "Installing in virtual environment..."; \
+		venv/bin/pip install -e . || venv/Scripts/pip install -e .; \
+	else \
+		echo "Virtual environment not found. Run 'make venv' first."; \
+		exit 1; \
+	fi
 
 dev-install:
 	pip install -e ".[dev]"
