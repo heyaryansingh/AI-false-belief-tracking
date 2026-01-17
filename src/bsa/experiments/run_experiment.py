@@ -6,6 +6,7 @@ from typing import Dict, Any, Optional, List
 from ..common.config import load_config
 from ..common.seeding import get_rng
 from .runner import ExperimentRunner
+from .sweep import SweepRunner
 from ..envs.gridhouse import GridHouseEnvironment, GridHouseEpisodeGenerator
 from ..envs.gridhouse.tasks import list_tasks
 
@@ -169,3 +170,23 @@ def reproduce(small: bool = False) -> None:
     print("\n" + "=" * 70)
     print("Reproduction complete!")
     print("=" * 70)
+
+
+def run_sweep(config: Dict[str, Any], output_dir: Optional[Path] = None) -> None:
+    """Run parameter sweep from sweep config.
+
+    Args:
+        config: Sweep configuration dictionary (see SweepRunner.__init__)
+        output_dir: Override output directory from config
+    """
+    # Create sweep runner
+    if output_dir:
+        config["output_dir"] = str(output_dir)
+    
+    runner = SweepRunner(config, output_dir=output_dir)
+    
+    # Run sweep
+    results = runner.run_sweep()
+    
+    print(f"\nSweep complete: {results.get('parameter', 'grid_search')}")
+    print(f"  Results: {results.get('num_values', results.get('num_combinations', 0))} configurations tested")

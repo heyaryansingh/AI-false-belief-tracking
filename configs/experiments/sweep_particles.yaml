@@ -1,0 +1,25 @@
+# Sweep configuration for num_particles parameter
+parameter: model_config.belief_pf.particle_filter.num_particles
+values: [10, 50, 100, 200]
+
+base_config:
+  name: sweep_particles
+  models:
+    - belief_pf
+  conditions:
+    - false_belief
+  num_runs: 5
+  seed: 42
+  env_type: gridhouse
+  model_config:
+    belief_pf:
+      particle_filter:
+        num_particles: 100  # Will be overridden by sweep values
+        resampling_threshold: 0.5
+        intervention_threshold: 0.7
+      intervention:
+        cost_weight: 0.1
+        types:
+          - fetch
+          - communicate
+          - open_container

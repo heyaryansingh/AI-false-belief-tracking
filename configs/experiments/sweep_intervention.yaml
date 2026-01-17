@@ -1,0 +1,25 @@
+# Sweep configuration for intervention_threshold parameter
+parameter: model_config.belief_pf.particle_filter.intervention_threshold
+values: [0.5, 0.6, 0.7, 0.8, 0.9]
+
+base_config:
+  name: sweep_intervention
+  models:
+    - belief_pf
+  conditions:
+    - false_belief
+  num_runs: 5
+  seed: 42
+  env_type: gridhouse
+  model_config:
+    belief_pf:
+      particle_filter:
+        num_particles: 100
+        resampling_threshold: 0.5
+        intervention_threshold: 0.7  # Will be overridden by sweep values
+      intervention:
+        cost_weight: 0.1
+        types:
+          - fetch
+          - communicate
+          - open_container

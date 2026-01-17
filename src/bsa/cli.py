@@ -33,6 +33,11 @@ def main() -> None:
     # Reproduce command
     repro_parser = subparsers.add_parser("reproduce", help="Full reproduction")
     repro_parser.add_argument("--small", action="store_true", help="Small dataset for CI")
+    
+    # Sweep command
+    sweep_parser = subparsers.add_parser("sweep", help="Run parameter sweep")
+    sweep_parser.add_argument("--config", type=Path, required=True, help="Sweep config file")
+    sweep_parser.add_argument("--output", type=Path, help="Output directory")
 
     args = parser.parse_args()
 
@@ -59,6 +64,10 @@ def main() -> None:
     elif args.command == "reproduce":
         from .experiments.run_experiment import reproduce
         reproduce(small=args.small)
+    elif args.command == "sweep":
+        from .experiments.run_experiment import run_sweep
+        config = load_config(args.config)
+        run_sweep(config, output_dir=args.output)
     else:
         parser.print_help()
         sys.exit(1)
