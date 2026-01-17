@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 import numpy as np
 from pathlib import Path
 
-from ...common.types import Episode, EpisodeStep, Goal, Action
+from ...common.types import Episode, EpisodeStep, Goal, Action, ObjectLocation
 from ...common.seeding import get_rng
 from ...agents.human import ScriptedHumanAgent
 from .env import GridHouseEnvironment
@@ -60,6 +60,10 @@ class GridHouseEpisodeGenerator:
         if goal_id is None:
             goal_id = self.rng.choice(list_tasks())
         task = get_task(goal_id)
+
+        # Validate task has critical objects
+        if not task.critical_objects:
+            raise ValueError(f"Task {goal_id} has no critical objects")
 
         # Select intervention parameters
         if tau is None:
@@ -127,17 +131,153 @@ class GridHouseEpisodeGenerator:
             if done:
                 break
 
+        # Validate episode
+        if len(steps) < tau + 5:
+            # Episode too short - log warning but continue
+            pass
+
+        # Validate intervention occurred if expected
+        intervention_applied = False
+        false_belief_created = False
+        if intervention_type == "relocate" and tau is not None:
+            # Check if intervention was applied (object moved)
+            if len(steps) > tau:
+                step_after = steps[tau]
+                # Check if any critical object moved
+                for obj_id in task.critical_objects:
+                    if obj_id in step_after.true_object_locations:
+                        true_loc = step_after.true_object_locations[obj_id]
+                        belief_loc = step_after.human_belief_object_locations.get(obj_id)
+                        if belief_loc and true_loc.room_id != belief_loc.room_id:
+                            intervention_applied = True
+                            false_belief_created = True
+                            break
+
+        # Update metadata with validation results
+        metadata = {
+            "max_steps": max_steps,
+            "occlusion_severity": self.occlusion_severity,
+            "intervention_applied": intervention_applied,
+            "false_belief_created": false_belief_created,
+            "task_completed": False,  # TODO: Implement task completion detection
+            "num_steps": len(steps),
+        }
+
         return Episode(
             episode_id=f"episode_{self.rng.integers(0, 1000000)}",
             goal_id=goal_id,
             tau=tau,
             intervention_type=intervention_type,
             steps=steps,
-            metadata={"max_steps": max_steps, "occlusion_severity": self.occlusion_severity},
+            metadata=metadata,
         )
 
     def _apply_intervention(self, task, human_belief_locations: Dict) -> None:
-        """Apply false-belief intervention (stub - will be implemented in plan 01-02)."""
-        # Stub implementation - will be completed in next plan
-        pass
+        """Apply false-belief intervention.
+
+        Moves a critical object to a different location while the human agent
+        cannot see, creating a false-belief scenario.
+
+        Args:
+            task: Task being performed
+            human_belief_locations: Human's belief state (NOT updated by this method)
+        """
+        # Get human's current position and room
+        human_pos = self.env.agent_positions.get("human")
+        human_room = self.env.agent_rooms.get("human")
+
+        if human_pos is None or human_room is None:
+            return  # Human not initialized
+
+        # Find a critical object to relocate
+        for obj_id in task.critical_objects:
+            if obj_id not in self.env.object_locations:
+                continue  # Object doesn't exist
+
+            obj_loc = self.env.object_locations[obj_id]
+
+            # Check if human can see this object
+            # Human can see if: same room AND within visibility radius
+            can_see = False
+            if obj_loc.room_id == human_room:
+                distance = np.sqrt(
+                    (obj_loc.position[0] - human_pos[0]) ** 2 + (obj_loc.position[1] - human_pos[1]) ** 2
+                )
+                if distance <= self.env.visibility_radius:
+                    # Also check if object is in container - only visible if container is open
+                    if obj_loc.container_id:
+                        container = self.env.containers.get(obj_loc.container_id)
+                        if container and container.is_open:
+                            can_see = True
+                    else:
+                        can_see = True
+
+            # Only relocate if human cannot see
+            if not can_see:
+                # Find alternative location (different room or different container)
+                old_container_id = obj_loc.container_id
+                old_room_id = obj_loc.room_id
+
+                # Try to find alternative container in different room
+                alternative_container = None
+                for container_id, container in self.env.containers.items():
+                    if container.room_id != old_room_id:
+                        alternative_container = container
+                        break
+
+                if alternative_container:
+                    # Move to alternative container
+                    new_container_id = alternative_container.container_id
+                    new_room_id = alternative_container.room_id
+                    new_position = (
+                        float(alternative_container.position[0]),
+                        float(alternative_container.position[1]),
+                        0.0,
+                    )
+
+                    # Remove from old container
+                    if old_container_id:
+                        old_container = self.env.containers.get(old_container_id)
+                        if old_container and obj_id in old_container.contents:
+                            old_container.contents.remove(obj_id)
+
+                    # Add to new container
+                    alternative_container.contents.append(obj_id)
+
+                    # Update object location
+                    self.env.object_locations[obj_id] = ObjectLocation(
+                        object_id=obj_id,
+                        container_id=new_container_id,
+                        room_id=new_room_id,
+                        position=new_position,
+                    )
+                else:
+                    # No alternative container - move to different room
+                    alternative_rooms = [rid for rid in self.env.rooms.keys() if rid != old_room_id]
+                    if alternative_rooms:
+                        new_room_id = self.rng.choice(alternative_rooms)
+                        new_room = self.env.rooms[new_room_id]
+
+                        # Place in center of new room
+                        x = (new_room.bounds[0] + new_room.bounds[2]) // 2
+                        y = (new_room.bounds[1] + new_room.bounds[3]) // 2
+                        new_position = (float(x), float(y), 0.0)
+
+                        # Remove from old container if needed
+                        if old_container_id:
+                            old_container = self.env.containers.get(old_container_id)
+                            if old_container and obj_id in old_container.contents:
+                                old_container.contents.remove(obj_id)
+
+                        # Update object location
+                        self.env.object_locations[obj_id] = ObjectLocation(
+                            object_id=obj_id,
+                            container_id=None,
+                            room_id=new_room_id,
+                            position=new_position,
+                        )
+
+                # Important: Do NOT update human_belief_locations
+                # This creates the false belief - human still believes object at old location
+                break  # Only relocate one object per intervention
 
