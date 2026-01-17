@@ -1,0 +1,3 @@
+model_type: reactive
+name: Reactive Baseline
+description: Reacts to visible objects, fetches if needed

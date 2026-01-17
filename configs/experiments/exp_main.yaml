@@ -1,0 +1,17 @@
+experiment:
+  name: main_experiment
+  models:
+    - reactive
+    - goal_only
+    - belief_pf
+  conditions:
+    - control
+    - false_belief
+    - seen_relocation
+  num_runs: 10
+  seed: 42
+
+output:
+  dir: results/
+  save_episodes: true
+  save_metrics: true

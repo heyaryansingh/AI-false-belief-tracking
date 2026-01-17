@@ -1,0 +1,3 @@
+model_type: goal_only
+name: Goal-Only Baseline
+description: Infers goal, assumes human beliefs match true state

@@ -1,0 +1,15 @@
+model_type: belief_pf
+name: Belief Particle Filter
+description: Maintains particles over (goal, belief over object locations)
+
+particle_filter:
+  num_particles: 100
+  resampling_threshold: 0.5
+  intervention_threshold: 0.7
+
+intervention:
+  cost_weight: 0.1
+  types:
+    - fetch
+    - communicate
+    - open_container

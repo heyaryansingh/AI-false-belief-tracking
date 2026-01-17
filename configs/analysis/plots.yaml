@@ -1,0 +1,15 @@
+analysis:
+  input_dir: results/metrics
+  output_dir: results/figures
+
+plots:
+  - type: belief_timeline
+    filename: belief_timeline.png
+  - type: detection_auroc
+    filename: detection_auroc.png
+  - type: task_performance
+    filename: task_performance.png
+
+report:
+  output: results/reports/report.md
+  template: paper/report_template.md

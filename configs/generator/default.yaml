@@ -1,0 +1,14 @@
+generator:
+  env_config: configs/env/gridhouse.yaml
+  num_episodes: 100
+  tau_range: [5, 20]
+  drift_probability: 0.5
+  occlusion_severity: 0.5
+  output_format: parquet
+  output_dir: data/episodes
+
+tasks:
+  - prepare_meal
+  - set_table
+  - pack_bag
+  - find_keys
