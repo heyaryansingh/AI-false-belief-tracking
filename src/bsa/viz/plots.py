@@ -395,7 +395,7 @@ def generate_plots(
     
     # Load aggregated results if not provided
     if aggregated_df is None:
-        from .aggregate import AnalysisAggregator
+        from ..analysis.aggregate import AnalysisAggregator
         aggregator = AnalysisAggregator()
         input_dir = Path(analysis_config.get("input_dir", "results/metrics"))
         df = aggregator.load_results(input_dir=input_dir)
