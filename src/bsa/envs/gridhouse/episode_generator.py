@@ -6,6 +6,7 @@ from pathlib import Path
 
 from ...common.types import Episode, EpisodeStep, Goal, Action
 from ...common.seeding import get_rng
+from ...agents.human import ScriptedHumanAgent
 from .env import GridHouseEnvironment
 from .tasks import get_task, list_tasks
 
@@ -66,26 +67,42 @@ class GridHouseEpisodeGenerator:
         if intervention_type is None:
             intervention_type = "relocate" if self.rng.random() < self.drift_probability else None
 
+        # Initialize human agent with goal
+        initial_beliefs = self.env.get_object_locations().copy()
+        human_agent = ScriptedHumanAgent(goal=task, initial_belief_state=initial_beliefs)
+
         # Generate episode steps
         steps: List[EpisodeStep] = []
         max_steps = 50
 
-        # Track human belief state (simplified)
-        human_belief_locations = self.env.get_object_locations().copy()
+        # Track human belief state
+        human_belief_locations = initial_beliefs.copy()
 
         for t in range(max_steps):
+            # Get human observation
+            human_obs = self.env.get_visible_state("human")
+
             # Apply intervention at tau
             if t == tau and intervention_type == "relocate":
                 self._apply_intervention(task, human_belief_locations)
 
-            # Human action (simplified scripted policy)
-            human_action = self._get_human_action(task, human_belief_locations, t)
+            # Human action using agent's planning
+            human_action = human_agent.plan_action(
+                observation=human_obs,
+                task=task,
+                belief_state=human_belief_locations,
+            )
 
             # Execute action
-            human_obs, _, done, _ = self.env.step(human_action, "human")
+            human_obs_after, _, done, _ = self.env.step(human_action, "human")
 
             # Update human belief (only if they observe)
-            self._update_human_belief(human_belief_locations, human_obs)
+            true_locations = self.env.get_object_locations()
+            human_agent.update_belief(
+                observation=human_obs_after,
+                true_object_locations=true_locations,
+                belief_state=human_belief_locations,
+            )
 
             # Helper observation
             helper_obs = self.env.get_visible_state("helper")
@@ -96,11 +113,11 @@ class GridHouseEpisodeGenerator:
                 timestep=t,
                 human_action=human_action,
                 helper_obs=helper_obs,
-                human_obs=human_obs,
-                visible_objects_h=human_obs.visible_objects,
+                human_obs=human_obs_after,
+                visible_objects_h=human_obs_after.visible_objects,
                 visible_objects_helper=helper_obs.visible_objects,
-                true_object_locations=self.env.get_object_locations(),
-                human_belief_object_locations=human_belief_locations,
+                true_object_locations=true_locations,
+                human_belief_object_locations=human_belief_locations.copy(),
                 goal_id=goal_id,
                 tau=tau if t >= tau else None,
                 intervention_type=intervention_type if t >= tau else None,
@@ -119,29 +136,3 @@ class GridHouseEpisodeGenerator:
             metadata={"max_steps": max_steps, "occlusion_severity": self.occlusion_severity},
         )
 
-    def _apply_intervention(self, task, human_belief_locations: Dict) -> None:
-        """Apply false-belief intervention."""
-        # Move a critical object while human cannot see
-        # Simplified: move object to different location
-        for obj_id in task.critical_objects:
-            if obj_id in self.env.object_locations:
-                # Move object to different location
-                # TODO: Implement proper relocation logic
-                pass
-
-    def _get_human_action(self, task, human_belief_locations: Dict, t: int) -> Action:
-        """Get human action based on task and belief."""
-        # Simplified scripted policy
-        # TODO: Implement proper planning based on belief state
-        if t % 3 == 0:
-            return Action.MOVE
-        elif t % 3 == 1:
-            return Action.OPEN
-        else:
-            return Action.WAIT
-
-    def _update_human_belief(self, human_belief_locations: Dict, obs) -> None:
-        """Update human belief based on observation."""
-        # Update belief only if object is observed
-        # TODO: Implement proper belief update logic
-        pass
