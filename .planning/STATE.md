@@ -2,7 +2,7 @@
 
 ## Current Position
 
-**Phase**: 3 (VirtualHome Backend)
+**Phase**: 4 (Experiment Harness + Reproducibility)
 **Status**: Complete - All plans executed
 
 ## Accumulated Decisions
@@ -39,7 +39,14 @@ Phase 3 Complete:
 3. ✓ Plan 03-03: Episode recorder and observability module
 4. ✓ Plan 03-04: Comprehensive tests and end-to-end verification
 
-Ready for Phase 4 (Experiment Harness + Reproducibility).
+Phase 4 Complete:
+1. ✓ Plan 04-01: Experiment Runner Core
+2. ✓ Plan 04-02: Episode Evaluator with comprehensive metrics
+3. ✓ Plan 04-03: Sweep Runner & Ablations
+4. ✓ Plan 04-04: Reproducibility & Manifests
+5. ✓ Plan 04-05: CLI Completion & Integration
+
+Ready for Phase 5 (Metrics + Analysis + Report) or Phase 6 (Tests + CI).
 
 ## Alignment Status
 
