@@ -528,7 +528,8 @@ def generate_tables(
     # Get output directory
     if output_dir is None:
         analysis_config = config.get("analysis", {})
-        output_dir = Path(analysis_config.get("output_dir", "results/tables"))
+        # Default to results/tables (not figures)
+        output_dir = Path(analysis_config.get("tables_dir", "results/tables"))
     else:
         output_dir = Path(output_dir)
     
