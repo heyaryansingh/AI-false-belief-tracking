@@ -169,7 +169,7 @@ If you use this repository in your research, please cite:
   title = {Belief-Sensitive Embodied Assistance Research},
   author = {Your Name},
   year = {2024},
-  url = {https://github.com/yourusername/belief-assistance-research}
+  url = {https://github.com/heyaryansingh/AI-false-belief-tracking}
 }
 ```
 
