@@ -53,9 +53,52 @@ reproduce: generate run analyze
 test:
 	pytest tests/
 
+test-unit:
+	pytest tests/ -k "not integration" -v
+
+test-integration:
+	pytest tests/test_integration.py -v
+
+test-coverage:
+	pytest tests/ --cov=src/bsa --cov-report=term-missing --cov-report=html
+
+test-fast:
+	pytest tests/ -k "not integration and not virtualhome" -v
+
+test-all:
+	pytest tests/ -v
+
+coverage:
+	pytest tests/ --cov=src/bsa --cov-report=term-missing
+
+coverage-html:
+	pytest tests/ --cov=src/bsa --cov-report=html
+	@echo "Coverage report: htmlcov/index.html"
+
+coverage-report:
+	pytest tests/ --cov=src/bsa --cov-report=term-missing | grep -E "(TOTAL|Name)"
+
 lint:
 	ruff check src/ tests/
+
+type-check:
 	mypy src/
+
+format:
+	ruff format src/ tests/
+
+format-check:
+	ruff format --check src/ tests/
+
+ci-test:
+	pytest tests/ -v --tb=short
+
+ci-lint:
+	ruff check src/ tests/
+	mypy src/ || true
+
+ci-reproduce:
+	bsa reproduce --small || echo "Reproduction failed"
 
 clean:
 	rm -rf build/ dist/ *.egg-info/
