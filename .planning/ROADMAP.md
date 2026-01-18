@@ -125,3 +125,24 @@
 **Research**: No
 
 **Dependencies**: All previous phases
+
+---
+
+## Phase 7: Research Execution & Paper Writing
+
+**Goal**: Execute comprehensive experiments, collect extensive data, generate detailed visualizations, and write research paper
+
+**Status**: Planning
+
+**Tasks**:
+- Plan 07-01: Large-scale experiment execution (5000-10000 episodes, 50 runs per config)
+- Plan 07-02: Comprehensive analysis & visualization (many detailed figures)
+- Plan 07-03: Paper writing (analyze data, write research paper)
+
+**Research**: Yes - Core research phase
+
+**Dependencies**: Phase 6 (all infrastructure complete)
+
+**Research Question**: Can belief-sensitive assistance (using particle filter/Bayesian inference) outperform reactive and goal-only baselines on false-belief detection, task completion, and wasted action reduction?
+
+**Target**: Labs, jobs, and AI researchers

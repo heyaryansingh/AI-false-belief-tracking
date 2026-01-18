@@ -1,0 +1,123 @@
+# Large-Scale Experiment Configuration
+# For comprehensive research data collection
+
+experiment:
+  name: "large_scale_research"
+  
+  # Models to test
+  models:
+    - "reactive"
+    - "goal_only"
+    - "belief_pf"
+  
+  # Conditions to test
+  conditions:
+    - "control"
+    - "false_belief"
+    - "seen_relocation"
+  
+  # Statistical significance: 50 runs per model/condition combination
+  num_runs: 50
+  
+  # Seed for reproducibility
+  seed: 42
+  
+  # Environment
+  env_type: "gridhouse"  # Use GridHouse for speed; can switch to virtualhome if needed
+  
+  # Output directory
+  output_dir: "results/metrics/large_scale_research"
+
+# Generator configuration for episode generation
+generator:
+  env_type: "gridhouse"
+  
+  # Large-scale episode generation: 5000-10000 episodes
+  num_episodes: 10000
+  
+  # Diverse tau (intervention timing) distribution
+  tau_range: [5, 20]
+  
+  # Intervention probability
+  drift_probability: 0.5
+  
+  # Occlusion severity variations
+  occlusion_severity: 0.5
+  
+  # Output format
+  output_format: "parquet"
+  
+  # Output directory
+  output_dir: "data/episodes/large_scale"
+  
+  # Task distribution (use all available tasks)
+  tasks: null  # null = use all tasks
+
+# Analysis configuration
+analysis:
+  # Input directory
+  input_dir: "results/metrics/large_scale_research"
+  
+  # Output directory
+  output_dir: "results/analysis/large_scale"
+  
+  # Statistical analysis
+  statistics:
+    confidence_interval: 0.95
+    bootstrap_samples: 1000
+  
+  # Plots to generate
+  plots:
+    - type: "detection_auroc"
+      filename: "detection_auroc_detailed.png"
+      show_individual_runs: true
+      show_confidence_intervals: true
+    
+    - type: "detection_latency"
+      filename: "detection_latency_detailed.png"
+      show_individual_runs: true
+      show_confidence_intervals: true
+    
+    - type: "task_performance"
+      filename: "task_performance_detailed.png"
+      show_individual_runs: true
+      show_confidence_intervals: true
+    
+    - type: "intervention_quality"
+      filename: "intervention_quality_detailed.png"
+      show_individual_runs: true
+      show_confidence_intervals: true
+    
+    - type: "belief_timeline"
+      filename: "belief_timeline_sample.png"
+      num_samples: 10
+    
+    - type: "ablation_curves"
+      filename: "ablation_curves.png"
+      parameters: ["num_particles", "occlusion_severity"]
+    
+    - type: "comparison_heatmap"
+      filename: "model_comparison_heatmap.png"
+      metrics: ["auroc", "latency", "completion", "wasted_actions"]
+  
+  # Tables to generate
+  tables:
+    - type: "summary"
+      filename_md: "summary_table.md"
+      filename_tex: "summary_table.tex"
+      include_statistical_tests: true
+    
+    - type: "detection"
+      filename_md: "detection_table.md"
+      filename_tex: "detection_table.tex"
+      include_statistical_tests: true
+    
+    - type: "task_performance"
+      filename_md: "task_performance_table.md"
+      filename_tex: "task_performance_table.tex"
+      include_statistical_tests: true
+    
+    - type: "intervention"
+      filename_md: "intervention_table.md"
+      filename_tex: "intervention_table.tex"
+      include_statistical_tests: true
