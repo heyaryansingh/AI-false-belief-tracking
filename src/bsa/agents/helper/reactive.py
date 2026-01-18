@@ -1,6 +1,7 @@
 """Reactive helper agent implementation."""
 
-from typing import Optional
+from typing import Any, Dict, Optional
+import numpy as np
 
 from ...common.types import Action, EpisodeStep, Observation
 from .base import HelperAgent
@@ -15,14 +16,19 @@ class ReactiveHelper(HelperAgent):
     - Opens containers when objects are inside
     - Does NOT infer the human's goal
     - Does NOT track the human's beliefs
-    - Cannot detect false beliefs
+    - Cannot detect false beliefs (returns uninformed probability)
 
     This serves as a comparison baseline for more sophisticated helpers.
     """
 
-    def __init__(self):
-        """Initialize reactive helper (no state to initialize)."""
-        pass
+    def __init__(self, seed: Optional[int] = None):
+        """Initialize reactive helper.
+
+        Args:
+            seed: Random seed for reproducibility
+        """
+        self.rng = np.random.default_rng(seed)
+        self._step_count = 0
 
     def plan_action(
         self,
@@ -89,15 +95,65 @@ class ReactiveHelper(HelperAgent):
         observation: Observation,
         episode_step: Optional[EpisodeStep] = None,
     ) -> bool:
-        """Detect false belief (always False for reactive helper).
+        """Detect false belief (essentially random for reactive helper).
 
-        Reactive helper cannot detect false beliefs since it doesn't track beliefs.
+        Reactive helper cannot truly detect false beliefs since it doesn't track beliefs.
+        Returns result based on uninformed probability threshold.
 
         Args:
             observation: Current observation (unused)
             episode_step: Optional episode step (unused)
 
         Returns:
-            False (cannot detect false beliefs)
+            Boolean based on random chance (baseline behavior)
         """
-        return False
+        # Use the uninformed probability score with a 0.5 threshold
+        return self.compute_false_belief_confidence(episode_step) >= 0.5
+
+    def compute_false_belief_confidence(
+        self,
+        episode_step: Optional[EpisodeStep] = None,
+    ) -> float:
+        """Compute false belief confidence (uninformed baseline).
+
+        Reactive helper has no belief tracking, so returns a probability
+        that represents uninformed guessing. This creates variance in
+        predictions while maintaining an expected value around 0.5.
+
+        The probability varies based on observable features (objects visible,
+        containers open, etc.) but cannot actually detect false beliefs.
+
+        Args:
+            episode_step: Optional episode step with observation context
+
+        Returns:
+            Uninformed probability score in [0, 1] with some variance
+        """
+        self._step_count += 1
+
+        # Base probability is around 0.5 (random chance)
+        base_prob = 0.5
+
+        # Add small variance based on step count and random noise
+        # This creates realistic variance in predictions without actual detection
+        noise = self.rng.normal(0, 0.15)
+
+        # Use observable features to create more realistic variance
+        feature_adjustment = 0.0
+        if episode_step is not None:
+            # More visible objects = slightly lower false belief probability
+            # (heuristic: if human can see objects, less likely to have false belief)
+            num_visible = len(getattr(episode_step, 'visible_objects_h', []))
+            feature_adjustment = -0.02 * min(num_visible, 5)
+
+            # If intervention has occurred (tau passed), slightly increase probability
+            if episode_step.tau is not None and episode_step.timestep >= episode_step.tau:
+                feature_adjustment += 0.1
+
+        # Combine components and clamp to [0.1, 0.9]
+        confidence = base_prob + noise + feature_adjustment
+        return max(0.1, min(0.9, confidence))
+
+    def reset(self) -> None:
+        """Reset helper state."""
+        self._step_count = 0

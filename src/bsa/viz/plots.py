@@ -11,9 +11,12 @@ import seaborn as sns
 from scipy import stats
 
 # Set style for publication-quality plots
-sns.set_style("whitegrid")
+sns.set_style("whitegrid", {'axes.grid': True, 'grid.color': '.9', 'grid.linewidth': 0.5})
+sns.set_palette("husl")  # Professional color palette
 plt.rcParams['figure.dpi'] = 300
 plt.rcParams['savefig.dpi'] = 300
+plt.rcParams['savefig.bbox'] = 'tight'
+plt.rcParams['savefig.facecolor'] = 'white'
 plt.rcParams['font.size'] = 10
 plt.rcParams['axes.labelsize'] = 11
 plt.rcParams['axes.titlesize'] = 12
@@ -21,6 +24,10 @@ plt.rcParams['xtick.labelsize'] = 9
 plt.rcParams['ytick.labelsize'] = 9
 plt.rcParams['legend.fontsize'] = 9
 plt.rcParams['font.family'] = 'sans-serif'
+plt.rcParams['figure.facecolor'] = 'white'
+plt.rcParams['axes.facecolor'] = 'white'
+plt.rcParams['axes.edgecolor'] = '.3'
+plt.rcParams['axes.linewidth'] = 0.8
 
 # Professional color palettes
 MODEL_COLORS = {

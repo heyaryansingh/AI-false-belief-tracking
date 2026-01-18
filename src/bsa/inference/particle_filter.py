@@ -81,22 +81,32 @@ class ParticleFilter:
         For each particle, compute likelihood P(action | goal, believed_locations)
         and update weight accordingly.
 
+        IMPORTANT: This must INFER beliefs from human actions, NOT use ground truth.
+        We do NOT have access to human_belief_object_locations - that would be cheating.
+
         Args:
             human_action: Action taken by human agent
-            observation: Current observation
-            true_locations: True object locations (for initializing beliefs if needed)
+            observation: Current observation (what human sees)
+            true_locations: True object locations (for initialization and visibility updates)
             likelihood_model: Likelihood model for computing P(action | goal, believed_locations)
-            episode_step: Optional episode step with additional context
+            episode_step: Optional episode step (for visibility info, NOT beliefs)
         """
+        # NOTE: We do NOT use human_believed_locations - that would be data leakage!
+        # The particle filter must infer beliefs from observing human actions.
+
         # Update particle weights using likelihood model
         for particle in self.particles:
             goal = next(t for t in self.task_list if t.task_id == particle.goal_id)
 
-            # Initialize object locations if not set (use true locations as initial belief)
+            # Initialize particle beliefs from TRUE locations at episode start
+            # This represents the reasonable assumption that human knew locations initially
+            # The particle filter will track divergence as the episode progresses
             if not particle.object_locations:
-                particle.object_locations = true_locations.copy()
+                particle.object_locations = {k: v for k, v in true_locations.items()}
 
             # Compute likelihood P(action | goal, believed_locations)
+            # High likelihood = action makes sense given this belief hypothesis
+            # Low likelihood = action doesn't make sense, downweight this particle
             likelihood = likelihood_model.compute(
                 human_action, goal, particle.object_locations, observation
             )
@@ -107,13 +117,25 @@ class ParticleFilter:
         # Normalize weights
         self._normalize_weights()
 
-        # Update object location beliefs based on observation
-        # If human sees an object, update beliefs in all particles
-        for obj_id in observation.visible_objects:
-            if obj_id in true_locations:
-                # Human sees object - update belief to match true location
-                for particle in self.particles:
-                    particle.object_locations[obj_id] = true_locations[obj_id]
+        # Infer belief updates from human's VISIBLE observations
+        # If human can see an object, they would update their belief to match reality
+        if episode_step is not None:
+            human_visible = getattr(episode_step, 'visible_objects_h', None)
+            if human_visible is None:
+                human_visible = []
+            elif hasattr(human_visible, 'tolist'):
+                human_visible = human_visible.tolist()
+            for obj_id in human_visible:
+                if obj_id in true_locations:
+                    # Human sees object - update ALL particles to believe true location
+                    # This is valid: if human sees object, their belief matches reality
+                    for particle in self.particles:
+                        particle.object_locations[obj_id] = true_locations[obj_id]
+
+        # Key insight for false belief detection:
+        # If human's action suggests they believe object is at location X,
+        # but object is actually at location Y, particles with X get higher weight.
+        # Over time, this creates a distribution where believed != true location.
 
         # Resample if effective sample size is low
         if self._effective_sample_size() < self.num_particles / 2:

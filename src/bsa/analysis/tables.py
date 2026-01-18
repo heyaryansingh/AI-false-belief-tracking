@@ -38,7 +38,7 @@ class TableGenerator:
         metrics = [
             ("AUROC", "false_belief_detection_auroc_mean", "false_belief_detection_auroc_std"),
             ("Detection Latency", "false_belief_detection_latency_mean", "false_belief_detection_latency_std"),
-            ("Task Completion", "task_completed_mean", None),
+            ("Task Completion", "task_completed_mean", None),  # Will be converted to percentage
             ("Wasted Actions", "num_wasted_actions_mean", "num_wasted_actions_std"),
             ("Efficiency", "task_efficiency_mean", "task_efficiency_std"),
         ]
@@ -55,14 +55,27 @@ class TableGenerator:
                 if mean_col in model_df.columns:
                     mean_val = model_df[mean_col].iloc[0]
                     if mean_val is not None and not np.isnan(mean_val):
-                        if std_col and std_col in model_df.columns:
-                            std_val = model_df[std_col].iloc[0]
-                            if std_val is not None and not np.isnan(std_val):
-                                row[metric_name] = f"{mean_val:.3f} ± {std_val:.3f}"
+                        # Special handling for Task Completion (convert to percentage)
+                        if metric_name == "Task Completion":
+                            if std_col and std_col in model_df.columns:
+                                std_val = model_df[std_col].iloc[0]
+                                if std_val is not None and not np.isnan(std_val):
+                                    # Convert to percentage
+                                    row[metric_name] = f"{mean_val*100:.1f}% ± {std_val*100:.1f}%"
+                                else:
+                                    row[metric_name] = f"{mean_val*100:.1f}%"
+                            else:
+                                row[metric_name] = f"{mean_val*100:.1f}%"
+                        else:
+                            # Regular numeric formatting
+                            if std_col and std_col in model_df.columns:
+                                std_val = model_df[std_col].iloc[0]
+                                if std_val is not None and not np.isnan(std_val):
+                                    row[metric_name] = f"{mean_val:.3f} ± {std_val:.3f}"
+                                else:
+                                    row[metric_name] = f"{mean_val:.3f}"
                             else:
                                 row[metric_name] = f"{mean_val:.3f}"
-                        else:
-                            row[metric_name] = f"{mean_val:.3f}"
                     else:
                         row[metric_name] = "N/A"
                 else:

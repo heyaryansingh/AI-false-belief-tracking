@@ -131,18 +131,53 @@ class BeliefSensitiveHelper(HelperAgent):
         self,
         observation: Observation,
         episode_step: Optional[EpisodeStep] = None,
+        threshold: float = 0.5,
     ) -> bool:
         """Detect if human has false belief about object locations.
 
         Args:
             observation: Current observation (unused but required by interface)
             episode_step: Optional episode step with true locations
+            threshold: Detection threshold (0-1)
 
         Returns:
-            True if false belief detected, False otherwise
+            True if false belief detected with confidence above threshold
         """
         if episode_step is None:
             return False
 
         true_locations = episode_step.true_object_locations
-        return self.belief_inference.detect_false_belief(true_locations)
+        return self.belief_inference.detect_false_belief(true_locations, threshold=threshold)
+    
+    def compute_false_belief_confidence(
+        self,
+        episode_step: Optional[EpisodeStep] = None,
+    ) -> float:
+        """Compute confidence score for false belief detection.
+
+        Uses the particle filter's INFERRED beliefs about what the human believes,
+        compared against the true object locations. This is the honest evaluation -
+        we do NOT use ground truth about human beliefs (that would be cheating).
+
+        The particle filter must actually infer beliefs from observing human actions.
+
+        Args:
+            episode_step: Optional episode step with true locations (for comparison)
+
+        Returns:
+            Confidence score in [0, 1] based on inferred beliefs
+        """
+        if episode_step is None:
+            return 0.0
+
+        true_locations = episode_step.true_object_locations
+
+        # IMPORTANT: Do NOT pass human_believed_locations - that would be data leakage!
+        # The particle filter must infer beliefs from observations, not use ground truth.
+        return self.belief_inference.compute_false_belief_confidence(
+            true_locations, human_believed_locations=None
+        )
+
+    def reset(self) -> None:
+        """Reset belief inference to initial state."""
+        self.belief_inference.reset()

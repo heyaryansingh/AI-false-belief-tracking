@@ -132,8 +132,31 @@ class AnalysisAggregator:
         """
         stats_dict = {}
         
+        # Get numeric columns and boolean columns
         numeric_cols = df.select_dtypes(include=[np.number]).columns
+        bool_cols = df.select_dtypes(include=[bool]).columns
         
+        # Process boolean columns (convert to numeric for statistics)
+        for col in bool_cols:
+            values = df[col].dropna()
+            
+            if len(values) == 0:
+                stats_dict[f"{col}_mean"] = None
+                stats_dict[f"{col}_std"] = None
+                stats_dict[f"{col}_count"] = 0
+                continue
+            
+            # Convert boolean to numeric (True=1, False=0)
+            numeric_values = values.astype(float)
+            mean = float(numeric_values.mean())
+            std = float(numeric_values.std()) if len(numeric_values) > 1 else 0.0
+            count = len(values)
+            
+            stats_dict[f"{col}_mean"] = mean
+            stats_dict[f"{col}_std"] = std
+            stats_dict[f"{col}_count"] = count
+        
+        # Process numeric columns
         for col in numeric_cols:
             values = df[col].dropna()
             

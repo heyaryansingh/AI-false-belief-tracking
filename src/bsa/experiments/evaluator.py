@@ -32,6 +32,7 @@ class EpisodeEvaluator:
         step_data: List[Dict[str, Any]] = []
         helper_actions: List[Action] = []
         false_belief_predictions: List[bool] = []
+        false_belief_scores: List[float] = []  # Probability scores for AUROC
         false_belief_ground_truth: List[bool] = []
         
         # Iterate through episode steps
@@ -49,8 +50,16 @@ class EpisodeEvaluator:
                 episode_step=step,
             )
             
-            # Track false-belief detection
-            false_belief_predicted = helper_agent.detect_false_belief(helper_obs, episode_step=step)
+            # Track false-belief detection (with probability scores)
+            if hasattr(helper_agent, 'compute_false_belief_confidence'):
+                # Use probability-based detection
+                detection_confidence = helper_agent.compute_false_belief_confidence(episode_step=step)
+                false_belief_predicted = detection_confidence >= 0.5  # Threshold
+                false_belief_scores.append(detection_confidence)
+            else:
+                # Fallback to binary detection
+                false_belief_predicted = helper_agent.detect_false_belief(helper_obs, episode_step=step)
+                false_belief_scores.append(1.0 if false_belief_predicted else 0.0)
             false_belief_predictions.append(false_belief_predicted)
             
             # Ground truth: check if false belief actually exists
@@ -71,7 +80,7 @@ class EpisodeEvaluator:
         
         # False-belief detection metrics
         metrics.update(self._compute_false_belief_detection_metrics(
-            false_belief_predictions, false_belief_ground_truth, step_data
+            false_belief_predictions, false_belief_ground_truth, step_data, false_belief_scores
         ))
         
         # Belief tracking metrics
@@ -106,6 +115,7 @@ class EpisodeEvaluator:
         predictions: List[bool],
         ground_truth: List[bool],
         step_data: List[Dict[str, Any]],
+        scores: Optional[List[float]] = None,
     ) -> Dict[str, Any]:
         """Compute false-belief detection metrics (AUROC, detection latency, FPR).
 
@@ -113,6 +123,7 @@ class EpisodeEvaluator:
             predictions: List of false-belief predictions (one per step)
             ground_truth: List of ground truth false-belief existence (one per step)
             step_data: Step-by-step data
+            scores: Optional probability scores for AUROC computation
 
         Returns:
             Dictionary with detection metrics
@@ -136,18 +147,24 @@ class EpisodeEvaluator:
                 detection_latency = step_data[i]["timestep"] - first_false_belief_timestep
                 break
         
-        # Compute AUROC (simplified - using predictions as scores)
-        # In practice, would use probability scores from belief inference
+        # Compute AUROC using probability scores
         try:
             from sklearn.metrics import roc_auc_score
             if len(set(ground_truth)) > 1:  # Need both classes
-                # Convert boolean predictions to scores (1.0 if True, 0.0 if False)
-                scores = [1.0 if p else 0.0 for p in predictions]
-                auroc = roc_auc_score(ground_truth, scores)
+                if scores and len(scores) == len(ground_truth):
+                    # Use probability scores for better AUROC
+                    auroc = roc_auc_score(ground_truth, scores)
+                else:
+                    # Fallback to binary scores
+                    binary_scores = [1.0 if p else 0.0 for p in predictions]
+                    auroc = roc_auc_score(ground_truth, binary_scores)
             else:
                 auroc = None
         except ImportError:
             # sklearn not available - compute manually
+            auroc = None
+        except ValueError:
+            # Edge case: all predictions same class
             auroc = None
         
         # Compute false positive rate
@@ -214,6 +231,7 @@ class EpisodeEvaluator:
             Dictionary with task performance metrics
         """
         task_completed = episode.metadata.get("task_completed", False)
+        completion_timestep = episode.metadata.get("completion_timestep", None)
         num_steps = len(episode.steps)
         
         # Count wasted actions (simplified heuristic)
@@ -235,9 +253,14 @@ class EpisodeEvaluator:
         useful_actions = total_actions - wasted_actions
         efficiency = useful_actions / total_actions if total_actions > 0 else 0.0
         
+        # Compute steps to completion
+        num_steps_to_completion = None
+        if task_completed and completion_timestep is not None:
+            num_steps_to_completion = completion_timestep + 1  # +1 because timestep is 0-indexed
+        
         return {
             "task_completed": task_completed,
-            "num_steps_to_completion": num_steps if task_completed else None,
+            "num_steps_to_completion": num_steps_to_completion,
             "num_wasted_actions": wasted_actions,
             "task_efficiency": efficiency,
             "num_helper_actions": len(helper_actions),

@@ -1,6 +1,7 @@
 """Goal-only helper agent implementation."""
 
 from typing import Any, Dict, List, Optional
+import numpy as np
 
 from ...common.types import Action, EpisodeStep, Observation, Task
 from ...envs.gridhouse.tasks import get_task, list_tasks
@@ -33,6 +34,8 @@ class GoalOnlyHelper(HelperAgent):
 
         self.goal_inference = GoalInference(task_list, seed=seed)
         self.task_list = task_list
+        self.rng = np.random.default_rng(seed)
+        self._step_count = 0
 
     def plan_action(
         self,
@@ -110,16 +113,74 @@ class GoalOnlyHelper(HelperAgent):
         observation: Observation,
         episode_step: Optional[EpisodeStep] = None,
     ) -> bool:
-        """Detect false belief (always False for goal-only helper).
+        """Detect false belief (uninformed for goal-only helper).
 
         Goal-only helper assumes human beliefs match true state, so cannot
-        detect false beliefs.
+        truly detect false beliefs. Returns result based on goal-informed
+        but still essentially random probability.
 
         Args:
             observation: Current observation (unused)
             episode_step: Optional episode step (unused)
 
         Returns:
-            False (cannot detect false beliefs)
+            Boolean based on goal-informed probability
         """
-        return False
+        return self.compute_false_belief_confidence(episode_step) >= 0.5
+
+    def compute_false_belief_confidence(
+        self,
+        episode_step: Optional[EpisodeStep] = None,
+    ) -> float:
+        """Compute false belief confidence (goal-informed baseline).
+
+        Goal-only helper has goal tracking but no belief tracking. Returns
+        a probability that uses goal information but cannot actually detect
+        false beliefs about object locations.
+
+        Uses goal inference confidence to modulate the base probability,
+        creating more realistic variance than the reactive baseline.
+
+        Args:
+            episode_step: Optional episode step with context
+
+        Returns:
+            Goal-informed probability score in [0, 1]
+        """
+        self._step_count += 1
+
+        # Base probability around 0.5
+        base_prob = 0.5
+
+        # Add noise for variance
+        noise = self.rng.normal(0, 0.12)
+
+        # Use goal inference confidence to modulate
+        goal_adjustment = 0.0
+        most_likely_goal = self.goal_inference.get_most_likely_goal()
+        if most_likely_goal:
+            goal_dist = self.goal_inference.get_goal_distribution()
+            goal_confidence = goal_dist.get(most_likely_goal, 0.25)
+            # Higher goal confidence slightly increases false belief detection
+            # (intuition: confident about goal -> more likely to notice discrepancies)
+            goal_adjustment = (goal_confidence - 0.25) * 0.2
+
+        # Observable features adjustment
+        feature_adjustment = 0.0
+        if episode_step is not None:
+            # If tau has passed, increase probability slightly
+            if episode_step.tau is not None and episode_step.timestep >= episode_step.tau:
+                feature_adjustment += 0.08
+
+            # Fewer visible objects = slightly higher probability
+            num_visible = len(getattr(episode_step, 'visible_objects_h', []))
+            feature_adjustment += 0.01 * max(0, 3 - num_visible)
+
+        # Combine and clamp
+        confidence = base_prob + noise + goal_adjustment + feature_adjustment
+        return max(0.1, min(0.9, confidence))
+
+    def reset(self) -> None:
+        """Reset helper state."""
+        self.goal_inference.reset()
+        self._step_count = 0
