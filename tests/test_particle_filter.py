@@ -127,7 +127,7 @@ class TestParticleFilter:
         initial_count = len(pf.particles)
         
         # Force resampling
-        pf._resample()
+        pf.resample()
         
         # Particle count should be maintained
         assert len(pf.particles) == initial_count
@@ -260,7 +260,7 @@ class TestParticleFilter:
             true_locations=sample_true_locations,
             likelihood_model=likelihood_model,
         )
-        pf1._resample()
+        pf1.resample()
         count1 = len([p for p in pf1.particles if p.goal_id == sample_tasks[0].task_id])
         
         set_seed(42)
@@ -271,7 +271,7 @@ class TestParticleFilter:
             true_locations=sample_true_locations,
             likelihood_model=likelihood_model,
         )
-        pf2._resample()
+        pf2.resample()
         count2 = len([p for p in pf2.particles if p.goal_id == sample_tasks[0].task_id])
         
         # Counts should be the same with same seed
