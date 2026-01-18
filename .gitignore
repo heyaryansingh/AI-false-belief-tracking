@@ -84,3 +84,5 @@ htmlcov/
 build/
 dist/
 *.egg
+
+nul

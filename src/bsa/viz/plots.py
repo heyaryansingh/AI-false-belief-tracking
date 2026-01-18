@@ -181,23 +181,32 @@ class PlotGenerator:
             raw_fb = self.raw_df[self.raw_df["condition"] == "false_belief"].copy()
             models = ["reactive", "goal_only", "belief_pf"]
             x_positions = []
+            has_data = False
 
             for i, model in enumerate(models):
                 model_data = raw_fb[raw_fb["model"] == model]["false_belief_detection_auroc"].dropna()
                 if len(model_data) > 0:
+                    has_data = True
                     # Bar for mean
                     mean_val = model_data.mean()
-                    std_val = model_data.std()
+                    std_val = model_data.std() if len(model_data) > 1 else 0.0
                     color = self._get_model_color(model)
 
-                    ax1.bar(i, mean_val, yerr=std_val, capsize=5, alpha=0.6,
-                           color=color, edgecolor='black', linewidth=1, label=model if i == 0 else "")
+                    # Use fixed width for bars even when std is 0
+                    bar_width = 0.6
+                    ax1.bar(i, mean_val, width=bar_width, yerr=std_val if std_val > 0 else None, 
+                           capsize=5, alpha=0.6, color=color, edgecolor='black', linewidth=1, 
+                           label=f'{model} (N={len(model_data)})' if i == 0 else "")
 
-                    # Individual points with jitter
+                    # Individual points with jitter (even if all values are the same)
                     if show_individual_runs:
-                        jitter = np.random.normal(0, 0.05, len(model_data))
-                        ax1.scatter(i + jitter, model_data.values, alpha=0.5, s=20,
+                        jitter = np.random.normal(0, 0.1, len(model_data))
+                        ax1.scatter(i + jitter, model_data.values, alpha=0.6, s=30,
                                    color=color, edgecolors='black', linewidth=0.5, zorder=5)
+                        # Add text annotation if all values are the same
+                        if len(model_data.unique()) == 1:
+                            ax1.text(i, mean_val + 0.05, f'All={mean_val:.3f}',
+                                    ha='center', va='bottom', fontsize=9, fontweight='bold')
 
                     # 95% CI
                     if show_ci and len(model_data) > 1:
@@ -207,6 +216,11 @@ class PlotGenerator:
 
                     x_positions.append(i)
 
+            if not has_data:
+                ax1.text(0.5, 0.5, 'No AUROC data available\nfor false-belief condition',
+                        ha='center', va='center', fontsize=12, fontweight='bold',
+                        transform=ax1.transAxes, color='gray')
+
             ax1.set_xticks(range(len(models)))
             ax1.set_xticklabels(models, fontweight='bold')
             ax1.set_ylabel("AUROC", fontweight='bold')
@@ -214,6 +228,8 @@ class PlotGenerator:
             ax1.set_ylim([0, 1.1])
             ax1.axhline(y=0.5, color='gray', linestyle='--', alpha=0.5, label='Random')
             ax1.grid(True, alpha=0.3, axis='y')
+            if has_data:
+                ax1.legend(loc='upper right', fontsize=8)
 
         # Right: Violin plot showing distributions
         ax2 = axes[1]
@@ -222,7 +238,7 @@ class PlotGenerator:
             raw_fb = raw_fb[raw_fb["false_belief_detection_auroc"].notna()]
 
             if len(raw_fb) > 0:
-                # Create violin plot
+                # Create violin plot or box plot if all values are the same
                 models = raw_fb["model"].unique()
                 data_list = []
                 model_labels = []
@@ -230,23 +246,46 @@ class PlotGenerator:
                 for model in ["reactive", "goal_only", "belief_pf"]:
                     if model in models:
                         model_data = raw_fb[raw_fb["model"] == model]["false_belief_detection_auroc"]
-                        data_list.append(model_data.values)
-                        model_labels.append(model)
+                        if len(model_data) > 0:
+                            data_list.append(model_data.values)
+                            model_labels.append(model)
 
-                parts = ax2.violinplot(data_list, positions=range(len(data_list)), showmeans=True, showmedians=True)
+                if data_list:
+                    # Check if we can use violin plot (need variation) or should use box plot
+                    has_variation = any(len(np.unique(d)) > 1 for d in data_list)
+                    
+                    if has_variation:
+                        parts = ax2.violinplot(data_list, positions=range(len(data_list)), 
+                                              showmeans=True, showmedians=True)
+                        # Color violins
+                        for i, (pc, model) in enumerate(zip(parts['bodies'], model_labels)):
+                            pc.set_facecolor(self._get_model_color(model))
+                            pc.set_alpha(0.7)
+                    else:
+                        # All values are the same - use box plot or bar chart
+                        bp = ax2.boxplot(data_list, positions=range(len(data_list)), 
+                                        patch_artist=True, widths=0.6)
+                        for i, (patch, model) in enumerate(zip(bp['boxes'], model_labels)):
+                            patch.set_facecolor(self._get_model_color(model))
+                            patch.set_alpha(0.7)
+                        # Add value annotations
+                        for i, (d, model) in enumerate(zip(data_list, model_labels)):
+                            val = d[0] if len(d) > 0 else 0
+                            ax2.text(i, val + 0.05, f'N={len(d)}\nAll={val:.3f}',
+                                    ha='center', va='bottom', fontsize=9, fontweight='bold')
 
-                # Color violins
-                for i, (pc, model) in enumerate(zip(parts['bodies'], model_labels)):
-                    pc.set_facecolor(self._get_model_color(model))
-                    pc.set_alpha(0.7)
-
-                ax2.set_xticks(range(len(model_labels)))
-                ax2.set_xticklabels(model_labels, fontweight='bold')
-                ax2.set_ylabel("AUROC", fontweight='bold')
+                    ax2.set_xticks(range(len(model_labels)))
+                    ax2.set_xticklabels(model_labels, fontweight='bold')
+                    ax2.set_ylabel("AUROC", fontweight='bold')
+                    ax2.set_title("Distribution of Detection AUROC\n(False-Belief Condition)", fontweight='bold')
+                    ax2.set_ylim([0, 1.1])
+                    ax2.axhline(y=0.5, color='gray', linestyle='--', alpha=0.5)
+                    ax2.grid(True, alpha=0.3, axis='y')
+            else:
+                ax2.text(0.5, 0.5, 'No AUROC data available',
+                        ha='center', va='center', fontsize=12, fontweight='bold',
+                        transform=ax2.transAxes, color='gray')
                 ax2.set_title("Distribution of Detection AUROC\n(False-Belief Condition)", fontweight='bold')
-                ax2.set_ylim([0, 1.1])
-                ax2.axhline(y=0.5, color='gray', linestyle='--', alpha=0.5)
-                ax2.grid(True, alpha=0.3, axis='y')
 
         if save_path is None:
             save_path = self.output_dir / "detection_auroc_detailed.png"
@@ -343,13 +382,32 @@ class PlotGenerator:
                 ]["false_belief_detection_latency"].dropna()
 
                 if len(model_data) > 0:
-                    ax.hist(model_data, bins=20, alpha=0.7,
-                           color=self._get_model_color(model), edgecolor='black')
-                    ax.axvline(model_data.mean(), color='red', linestyle='--',
-                              linewidth=2, label=f'Mean: {model_data.mean():.1f}')
-                    ax.axvline(model_data.median(), color='blue', linestyle=':',
-                              linewidth=2, label=f'Median: {model_data.median():.1f}')
+                    # Handle case where all values are the same
+                    unique_vals = model_data.unique()
+                    if len(unique_vals) == 1:
+                        # Single value - show as a bar
+                        ax.bar(unique_vals[0], len(model_data), width=0.5,
+                              color=self._get_model_color(model), alpha=0.7, edgecolor='black')
+                        ax.axvline(model_data.mean(), color='red', linestyle='--',
+                                  linewidth=2, label=f'Mean: {model_data.mean():.1f}')
+                        ax.text(unique_vals[0], len(model_data) * 0.5, 
+                               f'N={len(model_data)}\nAll={unique_vals[0]:.1f}',
+                               ha='center', va='center', fontweight='bold', fontsize=10)
+                    else:
+                        # Multiple values - show histogram
+                        ax.hist(model_data, bins=min(20, len(unique_vals)), alpha=0.7,
+                               color=self._get_model_color(model), edgecolor='black')
+                        ax.axvline(model_data.mean(), color='red', linestyle='--',
+                                  linewidth=2, label=f'Mean: {model_data.mean():.1f}')
+                        ax.axvline(model_data.median(), color='blue', linestyle=':',
+                                  linewidth=2, label=f'Median: {model_data.median():.1f}')
                     ax.legend(fontsize=8)
+                    ax.set_xlim([-0.5, max(model_data.max(), 1)])
+                else:
+                    # No data - show message
+                    ax.text(0.5, 0.5, f'No detection\nlatency data\nfor {model}',
+                           ha='center', va='center', fontsize=12, fontweight='bold',
+                           transform=ax.transAxes, color='gray')
 
                 ax.set_xlabel("Detection Latency (steps)", fontweight='bold')
                 ax.set_title(f"{model}", fontweight='bold', fontsize=12)
@@ -386,6 +444,7 @@ class PlotGenerator:
 
         if self.raw_df is not None:
             models = ["reactive", "goal_only", "belief_pf"]
+            has_data = False
 
             for model in models:
                 model_data = self.raw_df[
@@ -394,17 +453,37 @@ class PlotGenerator:
                 ]["false_belief_detection_latency"].dropna()
 
                 if len(model_data) > 0:
+                    has_data = True
                     sorted_data = np.sort(model_data)
                     cdf = np.arange(1, len(sorted_data) + 1) / len(sorted_data)
-                    ax.plot(sorted_data, cdf, linewidth=2,
-                           color=self._get_model_color(model), label=model)
+                    
+                    # Handle case where all values are the same
+                    if len(np.unique(sorted_data)) == 1:
+                        # Single value - show as step function
+                        val = sorted_data[0]
+                        ax.plot([val - 0.1, val, val + 0.1], [0, 1, 1], 
+                               linewidth=2, color=self._get_model_color(model), 
+                               label=f'{model} (N={len(model_data)}, all={val:.1f})')
+                        ax.plot([val], [1], 'o', color=self._get_model_color(model), 
+                               markersize=8)
+                    else:
+                        # Multiple values - show normal CDF
+                        ax.plot(sorted_data, cdf, linewidth=2,
+                               color=self._get_model_color(model), label=f'{model} (N={len(model_data)})')
+
+            if not has_data:
+                ax.text(0.5, 0.5, 'No detection latency data available',
+                       ha='center', va='center', fontsize=14, fontweight='bold',
+                       transform=ax.transAxes, color='gray')
 
             ax.set_xlabel("Detection Latency (steps)", fontweight='bold')
             ax.set_ylabel("Cumulative Probability", fontweight='bold')
             ax.set_title("CDF of Detection Latency", fontweight='bold', fontsize=14)
-            ax.legend(title="Model", loc='lower right')
+            if has_data:
+                ax.legend(title="Model", loc='lower right')
             ax.grid(True, alpha=0.3)
             ax.set_ylim([0, 1.05])
+            ax.set_xlim([-0.5, 1.5])  # Focus on relevant range
 
         if save_path is None:
             save_path = self.output_dir / "detection_latency_cdf.png"
@@ -451,13 +530,23 @@ class PlotGenerator:
                     colors.append(self._get_model_color(model))
 
             if data:
-                bp = ax1.boxplot(data, labels=labels, patch_artist=True)
+                bp = ax1.boxplot(data, labels=labels, patch_artist=True, widths=0.6)
                 for patch, color in zip(bp['boxes'], colors):
                     patch.set_facecolor(color)
                     patch.set_alpha(0.7)
+                # Add sample size annotations
+                for i, (label, d) in enumerate(zip(labels, data)):
+                    ax1.text(i+1, ax1.get_ylim()[1] * 0.95, f'N={len(d)}',
+                            ha='center', va='top', fontsize=9, fontweight='bold')
                 ax1.set_ylabel("Detection Latency (steps)", fontweight='bold')
-                ax1.set_title("Detection Latency by Model", fontweight='bold')
+                ax1.set_title("Detection Latency by Model\n(False-Belief Condition)", fontweight='bold')
                 ax1.grid(True, alpha=0.3, axis='y')
+                ax1.set_ylim([-0.1, max(1.0, ax1.get_ylim()[1])])
+            else:
+                ax1.text(0.5, 0.5, 'No detection latency data\navailable for any model',
+                        ha='center', va='center', fontsize=12, fontweight='bold',
+                        transform=ax1.transAxes, color='gray')
+                ax1.set_title("Detection Latency by Model", fontweight='bold')
 
             # By condition
             ax2 = axes[1]
@@ -474,13 +563,23 @@ class PlotGenerator:
                     colors.append(self._get_condition_color(cond))
 
             if data:
-                bp = ax2.boxplot(data, labels=labels, patch_artist=True)
+                bp = ax2.boxplot(data, labels=labels, patch_artist=True, widths=0.6)
                 for patch, color in zip(bp['boxes'], colors):
                     patch.set_facecolor(color)
                     patch.set_alpha(0.7)
+                # Add sample size annotations
+                for i, (label, d) in enumerate(zip(labels, data)):
+                    ax2.text(i+1, ax2.get_ylim()[1] * 0.95, f'N={len(d)}',
+                            ha='center', va='top', fontsize=9, fontweight='bold')
                 ax2.set_ylabel("Detection Latency (steps)", fontweight='bold')
                 ax2.set_title("Detection Latency by Condition", fontweight='bold')
                 ax2.grid(True, alpha=0.3, axis='y')
+                ax2.set_ylim([-0.1, max(1.0, ax2.get_ylim()[1])])
+            else:
+                ax2.text(0.5, 0.5, 'No detection latency data\navailable for any condition',
+                        ha='center', va='center', fontsize=12, fontweight='bold',
+                        transform=ax2.transAxes, color='gray')
+                ax2.set_title("Detection Latency by Condition", fontweight='bold')
 
         if save_path is None:
             save_path = self.output_dir / "detection_latency_boxplot.png"
@@ -540,34 +639,40 @@ class PlotGenerator:
 
         # Plot 2: Wasted actions
         ax2 = axes[1]
-        if "group_model" in self.df.columns:
-            models = self.df["group_model"].unique()
+        if self.raw_df is not None and "model" in self.raw_df.columns:
+            models = ["reactive", "goal_only", "belief_pf"]
             wasted_means = []
             wasted_stds = []
             labels = []
             colors = []
 
             for model in models:
-                model_df = self.df[self.df["group_model"] == model]
-                if len(model_df) > 0:
-                    mean_val = model_df["num_wasted_actions_mean"].iloc[0] if "num_wasted_actions_mean" in model_df.columns else None
-                    std_val = model_df["num_wasted_actions_std"].iloc[0] if "num_wasted_actions_std" in model_df.columns else None
-
-                    if mean_val is not None and not np.isnan(mean_val):
-                        wasted_means.append(mean_val)
-                        wasted_stds.append(std_val if std_val is not None else 0.0)
-                        labels.append(model)
-                        colors.append(self._get_model_color(model))
+                model_data = self.raw_df[self.raw_df["model"] == model]["num_wasted_actions"].dropna()
+                if len(model_data) > 0:
+                    wasted_means.append(model_data.mean())
+                    wasted_stds.append(model_data.std() if len(model_data) > 1 else 0.0)
+                    labels.append(model)
+                    colors.append(self._get_model_color(model))
 
             if wasted_means:
                 x_pos = np.arange(len(labels))
-                ax2.bar(x_pos, wasted_means, yerr=wasted_stds, capsize=5, alpha=0.8,
-                       color=colors, edgecolor='black', linewidth=1)
+                ax2.bar(x_pos, wasted_means, yerr=wasted_stds if any(s > 0 for s in wasted_stds) else None,
+                       capsize=5, alpha=0.8, color=colors, edgecolor='black', linewidth=1)
+                # Add sample size annotations
+                for i, (label, d) in enumerate(zip(labels, models)):
+                    model_data = self.raw_df[self.raw_df["model"] == d]["num_wasted_actions"].dropna()
+                    ax2.text(i, wasted_means[i] + max(wasted_means) * 0.05, f'N={len(model_data)}',
+                            ha='center', va='bottom', fontsize=9, fontweight='bold')
                 ax2.set_xticks(x_pos)
                 ax2.set_xticklabels(labels, fontweight='bold')
                 ax2.set_ylabel("Wasted Actions", fontweight='bold')
                 ax2.set_title("Average Wasted Actions by Model", fontweight='bold')
                 ax2.grid(True, alpha=0.3, axis='y')
+            else:
+                ax2.text(0.5, 0.5, 'No wasted actions data available',
+                        ha='center', va='center', fontsize=12, fontweight='bold',
+                        transform=ax2.transAxes, color='gray')
+                ax2.set_title("Average Wasted Actions by Model", fontweight='bold')
 
         if save_path is None:
             save_path = self.output_dir / "task_performance.png"

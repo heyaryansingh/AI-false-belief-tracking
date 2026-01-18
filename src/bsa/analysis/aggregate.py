@@ -37,7 +37,20 @@ class AnalysisAggregator:
             input_path = Path(input_path)
             if not input_path.exists():
                 raise FileNotFoundError(f"Results file not found: {input_path}")
-            return pd.read_parquet(input_path)
+            # Check if it's a directory or file
+            if input_path.is_dir():
+                # If directory, use input_dir logic
+                parquet_files = list(input_path.rglob("results.parquet"))
+                if not parquet_files:
+                    raise ValueError(f"No results.parquet files found in {input_path}")
+                if len(parquet_files) == 1:
+                    return pd.read_parquet(parquet_files[0])
+                else:
+                    dfs = [pd.read_parquet(f) for f in parquet_files]
+                    return pd.concat(dfs, ignore_index=True)
+            else:
+                # It's a file
+                return pd.read_parquet(input_path)
         
         if input_dir:
             input_dir = Path(input_dir)

@@ -14,12 +14,12 @@ This repository implements a system where a "human" agent performs long-horizon 
 
 ## Features
 
-- 🏠 **Dual Simulator Support**: VirtualHome (3D) and GridHouse (symbolic fallback)
-- 🧠 **Belief Tracking**: Online particle filter inference of human's goal and object location beliefs
-- 🔍 **False-Belief Detection**: Automatic detection of when human beliefs diverge from reality
-- 📊 **Comprehensive Metrics**: AUROC, detection latency, task completion, wasted actions, intervention quality
-- 🔬 **Reproducible Research**: Deterministic seeding, manifest tracking, full pipeline automation
-- 📈 **Analysis Pipeline**: Automated plots, tables, and technical report generation
+- **Dual Simulator Support**: VirtualHome (3D) and GridHouse (symbolic fallback)
+- **Belief Tracking**: Online particle filter inference of human's goal and object location beliefs
+- **False-Belief Detection**: Automatic detection of when human beliefs diverge from reality
+- **Comprehensive Metrics**: AUROC, detection latency, task completion, wasted actions, intervention quality
+- **Reproducible Research**: Deterministic seeding, manifest tracking, full pipeline automation
+- **Analysis Pipeline**: Automated plots, tables, and technical report generation
 
 ## Quick Start
 
