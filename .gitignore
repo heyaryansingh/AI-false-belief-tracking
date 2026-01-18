@@ -62,6 +62,12 @@ Thumbs.db
 # Logs
 *.log
 
+# Coverage reports
+.coverage
+.coverage.*
+htmlcov/
+*.cover
+
 # Temporary files
 *.tmp
 *.bak
@@ -69,3 +75,12 @@ Thumbs.db
 
 # Cursor
 .cursor/
+
+# Planning and development docs (hidden from public repo)
+.planning/
+
+# Build artifacts
+*.egg-info/
+build/
+dist/
+*.egg

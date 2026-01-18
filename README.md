@@ -1,31 +1,43 @@
-# Belief-Sensitive Embodied Assistance Research
+# Belief-Sensitive Embodied Assistance
+
+[![CI](https://github.com/yourusername/belief-assistance-research/actions/workflows/ci.yml/badge.svg)](https://github.com/yourusername/belief-assistance-research/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
 Research-grade repository implementing a VirtualHome-based benchmark and methods for belief-sensitive embodied assistance under object-centered false belief (Theory of Mind).
 
 ## Overview
 
-This repository implements a system where a "human" agent performs long-horizon tasks in a household simulator (VirtualHome) while holding false beliefs about object locations due to occlusion/partial observability. A helper agent observes, infers both the human's goal AND belief state, detects false beliefs, and assists via actions or communication.
+This repository implements a system where a "human" agent performs long-horizon tasks in a household simulator (VirtualHome or GridHouse) while holding false beliefs about object locations due to occlusion/partial observability. A helper agent observes, infers both the human's goal AND belief state, detects false beliefs, and assists via actions or communication.
 
 **Core Research Question:** Can belief-sensitive assistance (using particle filter/Bayesian inference) outperform reactive and goal-only baselines on false-belief detection, task completion, and wasted action reduction?
+
+## Features
+
+- 🏠 **Dual Simulator Support**: VirtualHome (3D) and GridHouse (symbolic fallback)
+- 🧠 **Belief Tracking**: Online particle filter inference of human's goal and object location beliefs
+- 🔍 **False-Belief Detection**: Automatic detection of when human beliefs diverge from reality
+- 📊 **Comprehensive Metrics**: AUROC, detection latency, task completion, wasted actions, intervention quality
+- 🔬 **Reproducible Research**: Deterministic seeding, manifest tracking, full pipeline automation
+- 📈 **Analysis Pipeline**: Automated plots, tables, and technical report generation
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.9+
+- Python 3.9-3.11 (recommended for VirtualHome compatibility)
 - VirtualHome (optional, GridHouse fallback available)
-- Make (optional, scripts available)
 
 ### Installation
 
-**Recommended: Use virtual environment for VirtualHome compatibility**
+**Recommended: Use virtual environment**
 
 ```bash
 # Clone repository
-git clone <repo-url>
+git clone https://github.com/yourusername/belief-assistance-research.git
 cd belief-assistance-research
 
-# Setup virtual environment (Python 3.9-3.11 recommended)
+# Setup virtual environment
 python scripts/setup_venv.py
 
 # Activate virtual environment
@@ -34,22 +46,11 @@ venv\Scripts\activate
 # On Linux/Mac:
 source venv/bin/activate
 
-# Verify installation
-python -c "from src.bsa.envs.gridhouse import GridHouseEnvironment; print('GridHouse OK')"
-python -c "from src.bsa.envs.virtualhome import VirtualHomeEnvironment; print('VirtualHome OK')"  # Optional
-
-# Run minimal reproduction (GridHouse only)
-make reproduce
-```
-
-**Alternative: Direct installation (may have VirtualHome compatibility issues)**
-
-```bash
 # Install package
-pip install -e .
+pip install -e ".[dev]"
 
-# Setup VirtualHome (optional, requires Python 3.9-3.11)
-python scripts/install_virtualhome.py
+# Verify installation
+python -c "from src.bsa.envs.gridhouse import GridHouseEnvironment; print('✓ GridHouse OK')"
 ```
 
 ### Basic Usage
@@ -64,7 +65,7 @@ bsa run --config configs/experiments/exp_main.yaml
 # Analyze results
 bsa analyze --config configs/analysis/plots.yaml
 
-# Full reproduction
+# Full reproduction pipeline
 make reproduce
 ```
 
@@ -81,8 +82,8 @@ belief-assistance-research/
 │   └── analysis/        # Results analysis and plotting
 ├── configs/              # Configuration files
 ├── scripts/              # Utility scripts
-├── data/                 # Generated episodes
-├── results/              # Experiment results
+├── data/                 # Generated episodes (gitignored)
+├── results/              # Experiment results (gitignored)
 └── tests/                # Test suite
 ```
 
@@ -93,9 +94,9 @@ belief-assistance-research/
 False-belief tasks are classic Theory of Mind paradigms from cognitive science. In this work, we adapt them to embodied assistance scenarios:
 
 1. **Setup**: Human agent has a goal (e.g., "prepare meal") requiring a task-critical object
-2. **Initial State**: Object is at location L0, human observes this
-3. **Intervention**: At time τ, object moves to L1 while human cannot see (occlusion/partial observability)
-4. **False Belief**: Human continues to believe object is at L0
+2. **Initial State**: Object is at location L₀, human observes this
+3. **Intervention**: At time τ, object moves to L₁ while human cannot see (occlusion/partial observability)
+4. **False Belief**: Human continues to believe object is at L₀
 5. **Helper Task**: Helper agent must detect false belief and assist appropriately
 
 ### Belief-Sensitive Assistance
@@ -106,7 +107,7 @@ The helper agent maintains a particle filter over:
 
 Key capabilities:
 - **Belief Tracking**: Online inference of human's belief state from actions
-- **False-Belief Detection**: Detect when `argmax(believed_location) != true_location`
+- **False-Belief Detection**: Detect when `argmax(believed_location) ≠ true_location`
 - **Intervention Policy**: Choose between fetching object, communicating correction, or opening container
 
 ### Baselines
@@ -122,14 +123,7 @@ Key capabilities:
 - **False-Belief**: Relocation unseen by human
 - **Seen Relocation**: Relocation seen by human (control for visibility)
 
-### Ablations
-
-- Occlusion severity (visibility radius / room separation)
-- τ distribution (early vs late intervention)
-- Intervention cost (pragmatics of when to interrupt)
-- Particle count (PF compute vs accuracy tradeoff)
-
-## Metrics
+### Metrics
 
 - **False-Belief Detection**: AUROC, detection delay (t_detect - τ), false positive rate
 - **Belief Tracking**: Location accuracy, cross-entropy, Brier score
@@ -139,30 +133,10 @@ Key capabilities:
 ## Results
 
 Results are saved to `results/`:
-- `results/metrics/*.csv` - Raw metrics
+- `results/metrics/*.parquet` - Raw metrics
 - `results/figures/*.png` - Plots
 - `results/tables/*.md` - Tables
 - `results/reports/report.md` - Technical report
-
-## Extending the Repository
-
-### Adding New Tasks
-
-1. Define task in `src/bsa/envs/{virtualhome,gridhouse}/tasks.py`
-2. Add task-critical objects to config
-3. Update episode generator
-
-### Adding New Helper Models
-
-1. Implement `src/bsa/agents/helper/base.py` interface
-2. Add config in `configs/models/`
-3. Register in experiment config
-
-### Adding New Metrics
-
-1. Implement metric in `src/bsa/metrics/`
-2. Add to analysis config
-3. Update report template
 
 ## Testing
 
@@ -170,35 +144,44 @@ Results are saved to `results/`:
 # Run all tests
 pytest tests/
 
-# Run specific test suite
-pytest tests/test_particle_filter.py
-
 # Run with coverage
 pytest --cov=src/bsa tests/
+
+# Run specific test suite
+pytest tests/test_particle_filter.py -v
 ```
 
 ## CI/CD
 
 GitHub Actions runs:
 - Linting (ruff)
-- Tests
+- Type checking (mypy)
+- Tests (pytest)
+- Coverage reporting
 - Minimal reproduction (`bsa reproduce --small`)
 
 ## Citation
+
+If you use this repository in your research, please cite:
 
 ```bibtex
 @software{belief_assistance_research,
   title = {Belief-Sensitive Embodied Assistance Research},
   author = {Your Name},
   year = {2024},
-  url = {<repo-url>}
+  url = {https://github.com/yourusername/belief-assistance-research}
 }
 ```
 
 ## License
 
-[Specify license]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
-[Contributing guidelines]
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Acknowledgments
+
+- VirtualHome simulator: [VirtualHome](https://github.com/xavierpuigf/virtualhome)
+- Theory of Mind research in cognitive science
