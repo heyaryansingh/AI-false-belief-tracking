@@ -1,0 +1,336 @@
+# Comprehensive Analysis Configuration
+#
+# This configuration enables generation of publication-quality figures,
+# detailed statistical analysis, and comprehensive visualization suite.
+
+analysis:
+  # Input/output directories
+  input_dir: results/metrics/large_scale_research
+  output_dir: results/analysis
+  figures_dir: results/analysis/figures
+  tables_dir: results/analysis/tables
+  reports_dir: results/analysis/reports
+
+  # Data settings
+  aggregation:
+    group_by: [model, condition]
+    metrics_to_aggregate:
+      - false_belief_detection_auroc
+      - false_belief_detection_latency
+      - false_belief_detection_fpr
+      - goal_inference_accuracy
+      - task_efficiency
+      - num_wasted_actions
+      - num_interventions
+      - intervention_precision
+      - intervention_recall
+      - over_corrections
+      - under_corrections
+      - num_helper_actions
+
+# Statistical Analysis Settings
+statistics:
+  # Confidence intervals
+  confidence_intervals:
+    - 0.95
+    - 0.99
+
+  # Bootstrap settings for robust estimation
+  bootstrap:
+    enabled: true
+    n_resamples: 1000
+    random_seed: 42
+
+  # Statistical tests
+  tests:
+    - name: t_test
+      type: pairwise
+      correction: bonferroni
+    - name: anova
+      type: one_way
+      post_hoc: tukey
+    - name: effect_size
+      measures:
+        - cohens_d
+        - eta_squared
+
+  # Significance thresholds
+  significance_levels:
+    - threshold: 0.05
+      marker: "*"
+    - threshold: 0.01
+      marker: "**"
+    - threshold: 0.001
+      marker: "***"
+
+# Plot Specifications
+plots:
+  # Global plot settings
+  global:
+    dpi: 300
+    font_family: sans-serif
+    style: whitegrid
+    figure_formats:
+      - png
+      - pdf
+      - svg
+    color_palette:
+      models:
+        reactive: "#E74C3C"
+        goal_only: "#3498DB"
+        belief_pf: "#27AE60"
+      conditions:
+        control: "#95A5A6"
+        false_belief: "#E74C3C"
+        seen_relocation: "#9B59B6"
+
+  # Detection AUROC plots
+  detection_auroc:
+    - type: detection_auroc
+      filename: detection_auroc.png
+      title: "False-Belief Detection AUROC by Model"
+      show_baseline: true
+      baseline_value: 0.5
+
+    - type: detection_auroc_detailed
+      filename: detection_auroc_detailed.png
+      title: "Detection AUROC with Individual Runs"
+      show_individual_runs: true
+      show_ci: true
+      ci_level: 0.95
+
+    - type: detection_auroc_by_condition
+      filename: detection_auroc_by_condition.png
+      title: "Detection AUROC by Model and Condition"
+      grouped_bars: true
+
+  # Detection latency plots
+  detection_latency:
+    - type: detection_latency_histogram
+      filename: detection_latency_histogram.png
+      title: "Distribution of Detection Latency by Model"
+      bins: 20
+      show_mean: true
+      show_median: true
+
+    - type: detection_latency_cdf
+      filename: detection_latency_cdf.png
+      title: "CDF of Detection Latency"
+
+    - type: detection_latency_boxplot
+      filename: detection_latency_boxplot.png
+      title: "Detection Latency Box Plots"
+
+  # Task performance plots
+  task_performance:
+    - type: task_performance
+      filename: task_performance.png
+      title: "Task Performance Comparison"
+
+    - type: task_performance_detailed
+      filename: task_performance_detailed.png
+      title: "Detailed Task Performance Analysis"
+      include_violin: true
+      include_boxplot: true
+
+  # Intervention quality plots
+  intervention_quality:
+    - type: intervention_quality
+      filename: intervention_quality.png
+      title: "Intervention Quality Metrics"
+
+    - type: intervention_pr_scatter
+      filename: intervention_pr_scatter.png
+      title: "Intervention Precision vs Recall"
+      show_f1_isolines: true
+      f1_values: [0.2, 0.4, 0.6, 0.8]
+
+    - type: intervention_timing_dist
+      filename: intervention_timing_dist.png
+      title: "Intervention Count Distribution"
+
+  # Belief tracking plots
+  belief_tracking:
+    - type: belief_timeline
+      filename: belief_timeline.png
+      title: "Goal Inference Accuracy by Model"
+
+    - type: goal_inference_by_condition
+      filename: goal_inference_by_condition.png
+      title: "Goal Inference Accuracy by Model and Condition"
+
+  # Comparison heatmaps
+  heatmaps:
+    - type: model_comparison_heatmap
+      filename: model_comparison_heatmap.png
+      title: "Model Comparison Across Metrics"
+      normalize_per_row: true
+      colormap: RdYlGn
+
+    - type: condition_comparison_heatmap
+      filename: condition_comparison_heatmap.png
+      title: "Condition Comparison Across Metrics"
+      normalize_per_row: true
+      colormap: RdYlGn
+
+    - type: significance_heatmap
+      filename: significance_heatmap_auroc.png
+      title: "Statistical Significance (AUROC)"
+      metric: false_belief_detection_auroc
+      test: t_test
+
+  # Ablation study plots
+  ablation:
+    - type: tau_effect
+      filename: tau_effect.png
+      title: "Effect of Tau on Metrics"
+      metrics:
+        - false_belief_detection_auroc
+        - num_wasted_actions
+
+  # Summary figure
+  summary:
+    - type: summary_figure
+      filename: summary_figure.png
+      title: "Belief-State Assistance Research - Results Summary"
+      size: [18, 14]
+      include_all_metrics: true
+
+# Table Specifications
+tables:
+  # Global table settings
+  global:
+    formats:
+      - markdown
+      - latex
+    decimal_places: 3
+    show_significance_markers: true
+    show_confidence_intervals: true
+
+  # Individual tables
+  summary:
+    filename: summary
+    title: "Summary Table"
+    metrics:
+      - name: "AUROC"
+        column: false_belief_detection_auroc
+      - name: "Detection Latency"
+        column: false_belief_detection_latency
+      - name: "Task Completion"
+        column: task_completed
+      - name: "Wasted Actions"
+        column: num_wasted_actions
+      - name: "Efficiency"
+        column: task_efficiency
+
+  detection:
+    filename: detection
+    title: "False-Belief Detection Metrics"
+    filter_condition: false_belief
+    metrics:
+      - name: "AUROC"
+        column: false_belief_detection_auroc
+      - name: "Detection Latency"
+        column: false_belief_detection_latency
+      - name: "FPR"
+        column: false_belief_detection_fpr
+
+  task_performance:
+    filename: task_performance
+    title: "Task Performance Metrics"
+    metrics:
+      - name: "Completion Rate"
+        column: task_completed
+        format: percentage
+      - name: "Steps"
+        column: num_steps_to_completion
+      - name: "Wasted Actions"
+        column: num_wasted_actions
+      - name: "Efficiency"
+        column: task_efficiency
+
+  intervention:
+    filename: intervention
+    title: "Intervention Quality Metrics"
+    metrics:
+      - name: "Precision"
+        column: intervention_precision
+      - name: "Recall"
+        column: intervention_recall
+      - name: "Over-corrections"
+        column: over_corrections
+      - name: "Under-corrections"
+        column: under_corrections
+
+  statistical:
+    filename: statistical_tests
+    title: "Statistical Test Results"
+    include_tests:
+      - t_test
+      - anova
+      - effect_size
+
+# Report Configuration
+report:
+  output: results/analysis/reports/comprehensive_report.md
+  template: paper/report_template.md
+
+  sections:
+    - title: "Executive Summary"
+      include_key_findings: true
+
+    - title: "Detection Performance"
+      plots:
+        - detection_auroc_detailed.png
+        - detection_auroc_by_condition.png
+      tables:
+        - detection
+
+    - title: "Task Performance"
+      plots:
+        - task_performance_detailed.png
+      tables:
+        - task_performance
+
+    - title: "Intervention Quality"
+      plots:
+        - intervention_quality.png
+        - intervention_pr_scatter.png
+      tables:
+        - intervention
+
+    - title: "Model Comparison"
+      plots:
+        - model_comparison_heatmap.png
+        - significance_heatmap_auroc.png
+      tables:
+        - statistical_tests
+
+    - title: "Summary"
+      plots:
+        - summary_figure.png
+
+# Output Organization
+output:
+  # Create date-stamped directories
+  date_stamped: false
+
+  # Subdirectory structure
+  structure:
+    figures:
+      detection: detection_*.png
+      task: task_*.png
+      intervention: intervention_*.png
+      heatmaps: "*_heatmap.png"
+      summary: summary_*.png
+    tables:
+      markdown: "*.md"
+      latex: "*.tex"
+    reports:
+      main: comprehensive_report.md
+
+  # Generate manifest file
+  manifest:
+    enabled: true
+    filename: manifest.json
+    include_checksums: true
