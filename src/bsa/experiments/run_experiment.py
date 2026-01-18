@@ -102,18 +102,28 @@ def generate_episodes(config: Dict[str, Any], output_dir: Optional[Path] = None,
     return episodes
 
 
-def run_experiments(config: Dict[str, Any], output_dir: Optional[Path] = None) -> None:
+def run_experiments(config: Dict[str, Any], output_dir: Optional[Path] = None) -> Dict[str, Any]:
     """Run experiments from experiment config.
 
     Args:
         config: Experiment configuration dictionary (see ExperimentRunner.__init__)
+               Can be direct exp_config or wrapped in {"experiment": exp_config}
         output_dir: Override output directory from config
+
+    Returns:
+        Dictionary with experiment results summary
     """
+    # Extract experiment config if wrapped
+    if "experiment" in config:
+        exp_config = config["experiment"]
+    else:
+        exp_config = config
+    
     # Create experiment runner
     if output_dir:
-        config["output_dir"] = str(output_dir)
+        exp_config["output_dir"] = str(output_dir)
     
-    runner = ExperimentRunner(config, output_dir=output_dir)
+    runner = ExperimentRunner(exp_config, output_dir=output_dir)
     
     # Run experiments
     results = runner.run_experiment()
@@ -121,6 +131,8 @@ def run_experiments(config: Dict[str, Any], output_dir: Optional[Path] = None) -
     print(f"\nExperiment complete: {results['experiment_name']}")
     print(f"  Results: {results['num_results']} runs")
     print(f"  Output: {results['output_dir']}")
+    
+    return results
 
 
 def reproduce(small: bool = False) -> None:

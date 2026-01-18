@@ -76,7 +76,17 @@ def main():
     episode_start = time.time()
     
     try:
-        episodes = generate_episodes(gen_config)
+        # Wrap gen_config in proper format for generate_episodes
+        # generate_episodes expects config with "generator" key
+        generator_config = {"generator": gen_config}
+        if "tasks" in config:
+            generator_config["tasks"] = config["tasks"]
+        if "seed" in config:
+            generator_config["seed"] = config["seed"]
+        elif "seed" in exp_config:
+            generator_config["seed"] = exp_config["seed"]
+        
+        episodes = generate_episodes(generator_config)
         episode_time = time.time() - episode_start
         print(f"\n✓ Generated {len(episodes):,} episodes in {episode_time/60:.1f} minutes")
     except Exception as e:
@@ -92,7 +102,8 @@ def main():
     exp_start = time.time()
     
     try:
-        # Create experiment config dict
+        # run_experiments expects config dict, but ExperimentRunner expects exp_config directly
+        # So we pass exp_config wrapped in "experiment" key, but run_experiments will extract it
         experiment_config = {
             "experiment": exp_config
         }
@@ -100,7 +111,7 @@ def main():
         results = run_experiments(experiment_config)
         exp_time = time.time() - exp_start
         print(f"\n✓ Experiments completed in {exp_time/60:.1f} minutes")
-        print(f"  Results saved to: {results.get('output_dir', 'results/metrics')}")
+        print(f"  Results saved to: {results.get('output_dir', exp_config.get('output_dir', 'results/metrics/large_scale_research'))}")
     except Exception as e:
         print(f"\n✗ Experiment execution failed: {e}")
         import traceback
@@ -161,7 +172,7 @@ def main():
         },
         "results": {
             "episodes_generated": len(episodes),
-            "output_dir": str(results.get("output_dir", "")),
+            "output_dir": str(results.get("output_dir", exp_config.get("output_dir", "results/metrics/large_scale_research"))),
         }
     }
     
