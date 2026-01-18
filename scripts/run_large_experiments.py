@@ -13,6 +13,7 @@ from pathlib import Path
 import time
 from datetime import datetime
 import json
+import argparse
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -24,12 +25,20 @@ from bsa.analysis.aggregate import analyze_results
 
 def main():
     """Run large-scale experiments."""
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description="Run large-scale research experiments")
+    parser.add_argument("--yes", "-y", action="store_true",
+                       help="Skip confirmation prompt and proceed automatically")
+    parser.add_argument("--skip-generation", action="store_true",
+                       help="Skip episode generation (use existing episodes)")
+    args = parser.parse_args()
+
     print("=" * 70)
     print("Large-Scale Research Experiment Execution")
     print("=" * 70)
     print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
-    
+
     # Load configuration
     config_path = Path("configs/experiments/exp_large_scale.yaml")
     if not config_path.exists():
@@ -62,10 +71,14 @@ def main():
     print()
     
     # Confirm execution
-    response = input("Proceed with large-scale experiment execution? (yes/no): ")
-    if response.lower() not in ["yes", "y"]:
-        print("Aborted.")
-        return 0
+    if not args.yes:
+        response = input("Proceed with large-scale experiment execution? (yes/no): ")
+        if response.lower() not in ["yes", "y"]:
+            print("Aborted.")
+            return 0
+    else:
+        print("Auto-confirmation enabled (--yes flag)")
+        print("Proceeding with large-scale experiment execution...")
     
     start_time = time.time()
     
@@ -74,26 +87,44 @@ def main():
     print("[1/3] Generating Episodes")
     print("=" * 70)
     episode_start = time.time()
-    
-    try:
-        # Wrap gen_config in proper format for generate_episodes
-        # generate_episodes expects config with "generator" key
-        generator_config = {"generator": gen_config}
-        if "tasks" in config:
-            generator_config["tasks"] = config["tasks"]
-        if "seed" in config:
-            generator_config["seed"] = config["seed"]
-        elif "seed" in exp_config:
-            generator_config["seed"] = exp_config["seed"]
-        
-        episodes = generate_episodes(generator_config)
-        episode_time = time.time() - episode_start
-        print(f"\n✓ Generated {len(episodes):,} episodes in {episode_time/60:.1f} minutes")
-    except Exception as e:
-        print(f"\n✗ Episode generation failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return 1
+
+    episodes = None
+    episode_time = 0
+
+    # Check if episodes already exist
+    episode_dir = Path(gen_config.get("output_dir", "data/episodes/large_scale"))
+    existing_episodes = list(episode_dir.glob("*.parquet")) if episode_dir.exists() else []
+
+    if args.skip_generation and len(existing_episodes) > 0:
+        print(f"Skipping episode generation (--skip-generation flag)")
+        print(f"Found {len(existing_episodes):,} existing episodes in {episode_dir}")
+        episodes = existing_episodes
+        episode_time = 0
+    elif len(existing_episodes) >= num_episodes * 0.95:  # 95% tolerance
+        print(f"Found {len(existing_episodes):,} existing episodes (>= 95% of {num_episodes:,})")
+        print("Using existing episodes...")
+        episodes = existing_episodes
+        episode_time = 0
+    else:
+        try:
+            # Wrap gen_config in proper format for generate_episodes
+            # generate_episodes expects config with "generator" key
+            generator_config = {"generator": gen_config}
+            if "tasks" in config:
+                generator_config["tasks"] = config["tasks"]
+            if "seed" in config:
+                generator_config["seed"] = config["seed"]
+            elif "seed" in exp_config:
+                generator_config["seed"] = exp_config["seed"]
+
+            episodes = generate_episodes(generator_config)
+            episode_time = time.time() - episode_start
+            print(f"\n[OK] Generated {len(episodes):,} episodes in {episode_time/60:.1f} minutes")
+        except Exception as e:
+            print(f"\n[FAIL] Episode generation failed: {e}")
+            import traceback
+            traceback.print_exc()
+            return 1
     
     # Step 2: Run experiments
     print("\n" + "=" * 70)
@@ -110,10 +141,10 @@ def main():
         
         results = run_experiments(experiment_config)
         exp_time = time.time() - exp_start
-        print(f"\n✓ Experiments completed in {exp_time/60:.1f} minutes")
+        print(f"\n[OK] Experiments completed in {exp_time/60:.1f} minutes")
         print(f"  Results saved to: {results.get('output_dir', exp_config.get('output_dir', 'results/metrics/large_scale_research'))}")
     except Exception as e:
-        print(f"\n✗ Experiment execution failed: {e}")
+        print(f"\n[FAIL] Experiment execution failed: {e}")
         import traceback
         traceback.print_exc()
         return 1
@@ -127,9 +158,9 @@ def main():
     try:
         analyze_results(analysis_config)
         analysis_time = time.time() - analysis_start
-        print(f"\n✓ Analysis completed in {analysis_time/60:.1f} minutes")
+        print(f"\n[OK] Analysis completed in {analysis_time/60:.1f} minutes")
     except Exception as e:
-        print(f"\n✗ Analysis failed: {e}")
+        print(f"\n[FAIL] Analysis failed: {e}")
         import traceback
         traceback.print_exc()
         return 1
