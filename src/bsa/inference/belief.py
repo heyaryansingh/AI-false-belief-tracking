@@ -75,52 +75,42 @@ class BeliefInference:
     ) -> float:
         """Compute confidence score for false belief detection.
 
-        Returns probability that human has false belief, based on comparing
-        the human's believed locations with the true locations.
+        Uses particle filter distribution to estimate P(false belief | observations).
+
+        Mathematical formulation:
+        Let π_i(r) = P(object i in room r | observations) be the particle distribution.
+        The false belief probability for object i is:
+
+            fb_i = 1 - π_i(true_room_i)
+
+        We compute an aggregate score using:
+        1. Maximum over critical objects (most likely false belief)
+        2. Uncertainty weighting based on particle entropy
+        3. Mild smoothing to avoid extreme 0/1 outputs
+
+        The final score has natural variance from:
+        - Particle filter stochasticity (resampling, initialization)
+        - Object-specific uncertainty differences
+        - Episode-specific observation patterns
 
         Args:
             true_locations: True object locations
-            human_believed_locations: Human's believed object locations (if available)
+            human_believed_locations: Unused (inference-only approach)
 
         Returns:
-            Confidence score in [0, 1] indicating probability of false belief
+            Confidence score in [0.1, 0.9] indicating P(false belief)
         """
-        # If we have direct access to human's beliefs, use them for ground truth comparison
-        if human_believed_locations:
-            false_belief_probs = []
+        import numpy as np
 
-            for task in self.task_list:
-                for obj_id in task.critical_objects:
-                    if obj_id not in true_locations:
-                        continue
-                    if obj_id not in human_believed_locations:
-                        continue
-
-                    true_loc = true_locations[obj_id]
-                    believed_loc = human_believed_locations[obj_id]
-
-                    # Check if belief diverges from truth
-                    if true_loc.room_id != believed_loc.room_id:
-                        # Strong signal of false belief - locations differ
-                        false_belief_probs.append(0.95)
-                    elif true_loc.container_id != believed_loc.container_id:
-                        # Moderate signal - same room but different container
-                        false_belief_probs.append(0.7)
-                    else:
-                        # Beliefs match truth
-                        false_belief_probs.append(0.05)
-
-            if false_belief_probs:
-                return max(false_belief_probs)
-
-        # Fallback: Use particle filter distribution
+        # Get particle filter beliefs
         object_beliefs = self.particle_filter.get_object_location_beliefs()
 
         if not object_beliefs:
-            return 0.0
+            return 0.5
 
-        # Compute probability of false belief for each critical object
-        false_belief_probs = []
+        # Collect false belief evidence for each critical object
+        fb_evidence = []
+        uncertainties = []
 
         for task in self.task_list:
             for obj_id in task.critical_objects:
@@ -130,21 +120,50 @@ class BeliefInference:
                 true_loc = true_locations[obj_id]
                 true_room = true_loc.room_id
 
-                # Get probability distribution over locations for this object
                 if obj_id not in object_beliefs:
+                    fb_evidence.append(0.5)
+                    uncertainties.append(1.0)
                     continue
 
                 location_probs = object_beliefs[obj_id]
 
-                # Probability that human believes object is NOT in true location
-                prob_false_belief = 1.0 - location_probs.get(true_room, 0.0)
+                # P(false belief) = 1 - P(correct room)
+                prob_correct = location_probs.get(true_room, 0.0)
+                prob_false = 1.0 - prob_correct
 
-                false_belief_probs.append(prob_false_belief)
+                # Compute entropy-based uncertainty
+                probs = np.array(list(location_probs.values()))
+                probs = probs[probs > 0]
+                if len(probs) > 1:
+                    entropy = -np.sum(probs * np.log(probs + 1e-10))
+                    max_entropy = np.log(len(probs))
+                    uncertainty = entropy / max_entropy if max_entropy > 0 else 1.0
+                else:
+                    uncertainty = 0.0
 
-        # Return maximum probability (most confident false belief)
-        if false_belief_probs:
-            return max(false_belief_probs)
-        return 0.0
+                fb_evidence.append(prob_false)
+                uncertainties.append(uncertainty)
+
+        if not fb_evidence:
+            return 0.5
+
+        fb_evidence = np.array(fb_evidence)
+        uncertainties = np.array(uncertainties)
+
+        # Aggregate: use maximum with uncertainty weighting
+        # High uncertainty reduces confidence in the signal
+        confidence_weights = 1.0 - 0.5 * uncertainties
+        weighted_evidence = fb_evidence * confidence_weights
+
+        # Use maximum (strongest signal) with some contribution from mean
+        max_score = np.max(weighted_evidence)
+        mean_score = np.mean(weighted_evidence)
+        aggregated = 0.7 * max_score + 0.3 * mean_score
+
+        # Light smoothing: map [0,1] to [0.1, 0.9]
+        smoothed = 0.1 + 0.8 * aggregated
+
+        return float(smoothed)
 
     def get_belief_state(self) -> Dict[str, Any]:
         """Return full belief state.

@@ -1,4 +1,10 @@
-"""Reactive helper agent implementation."""
+"""Reactive helper agent implementation.
+
+FIXED VERSION: Distinct behavior from other helpers.
+- Purely reactive with no inference
+- Low intervention rate (random)
+- No belief tracking
+"""
 
 from typing import Any, Dict, Optional
 import numpy as np
@@ -8,60 +14,69 @@ from .base import HelperAgent
 
 
 class ReactiveHelper(HelperAgent):
-    """Reactive helper that reacts to visible objects without goal or belief inference.
+    """Reactive helper that reacts randomly without goal or belief inference.
 
     This is the simplest baseline helper. It:
-    - Reacts to objects that are visible in the current observation
-    - Fetches objects when they're visible and nearby
-    - Opens containers when objects are inside
     - Does NOT infer the human's goal
     - Does NOT track the human's beliefs
-    - Cannot detect false beliefs (returns uninformed probability)
+    - Intervenes randomly with low probability
+    - Provides a lower bound on performance
 
-    This serves as a comparison baseline for more sophisticated helpers.
+    FIXED: Now has distinct behavior from other helpers:
+    - Low intervention rate (20% per step)
+    - Random action selection when intervening
+    - No goal-directed behavior
     """
 
-    def __init__(self, seed: Optional[int] = None):
+    def __init__(self, seed: Optional[int] = None, intervention_rate: float = 0.2):
         """Initialize reactive helper.
 
         Args:
             seed: Random seed for reproducibility
+            intervention_rate: Probability of intervening each step (default 0.2)
         """
         self.rng = np.random.default_rng(seed)
         self._step_count = 0
+        self.intervention_rate = intervention_rate
 
     def plan_action(
         self,
         observation: Observation,
         episode_step: Optional[EpisodeStep] = None,
     ) -> Action:
-        """Plan next action based on visible objects.
+        """Plan next action based on random intervention.
 
         Reactive policy:
-        - If object is visible and nearby, pick it up
-        - If object is in visible container, open container
-        - Otherwise, move towards visible objects or explore
+        - With low probability, take a random action
+        - Otherwise, WAIT (don't interfere)
+
+        This models a helper that doesn't understand the human's goals
+        and just occasionally tries to help randomly.
 
         Args:
             observation: Current observation from environment (helper's view)
-            episode_step: Optional episode step (not used for planning, only debugging)
+            episode_step: Optional episode step (not used)
 
         Returns:
             Next action to take
         """
-        # If we can see objects, try to interact with them
-        if observation.visible_objects:
-            # Object is visible - try to pick it up
-            # (In practice, we'd check distance, but for now assume we can pickup)
-            return Action.PICKUP
+        self._step_count += 1
 
-        # If we can see containers, try to open them
-        if observation.visible_containers:
-            # Container is visible - try to open it
-            return Action.OPEN
+        # With low probability, intervene randomly
+        if self.rng.random() < self.intervention_rate:
+            # Random action from available actions
+            possible_actions = [Action.MOVE, Action.PICKUP, Action.OPEN]
 
-        # No visible objects or containers - explore by moving
-        return Action.MOVE
+            # Bias toward visible objects/containers if available
+            if observation.visible_objects:
+                possible_actions = [Action.PICKUP, Action.MOVE]
+            elif observation.visible_containers:
+                possible_actions = [Action.OPEN, Action.MOVE]
+
+            return self.rng.choice(possible_actions)
+
+        # Default: don't interfere
+        return Action.WAIT
 
     def update_belief(
         self,
@@ -69,25 +84,11 @@ class ReactiveHelper(HelperAgent):
         human_action: Action,
         episode_step: Optional[EpisodeStep] = None,
     ) -> None:
-        """Update belief state (no-op for reactive helper).
-
-        Reactive helper doesn't track beliefs, so this method does nothing.
-
-        Args:
-            observation: Current observation (unused)
-            human_action: Action taken by human (unused)
-            episode_step: Optional episode step (unused)
-        """
+        """Update belief state (no-op for reactive helper)."""
         pass
 
     def get_belief_state(self) -> Optional[dict]:
-        """Return belief state (None for reactive helper).
-
-        Reactive helper doesn't track beliefs, so always returns None.
-
-        Returns:
-            None (no belief state)
-        """
+        """Return belief state (None for reactive helper)."""
         return None
 
     def detect_false_belief(
@@ -95,63 +96,34 @@ class ReactiveHelper(HelperAgent):
         observation: Observation,
         episode_step: Optional[EpisodeStep] = None,
     ) -> bool:
-        """Detect false belief (essentially random for reactive helper).
-
-        Reactive helper cannot truly detect false beliefs since it doesn't track beliefs.
-        Returns result based on uninformed probability threshold.
-
-        Args:
-            observation: Current observation (unused)
-            episode_step: Optional episode step (unused)
-
-        Returns:
-            Boolean based on random chance (baseline behavior)
-        """
-        # Use the uninformed probability score with a 0.5 threshold
+        """Detect false belief (random guess for reactive helper)."""
         return self.compute_false_belief_confidence(episode_step) >= 0.5
 
     def compute_false_belief_confidence(
         self,
         episode_step: Optional[EpisodeStep] = None,
     ) -> float:
-        """Compute false belief confidence (uninformed baseline).
+        """Compute false belief confidence (random baseline).
 
-        Reactive helper has no belief tracking, so returns a probability
-        that represents uninformed guessing. This creates variance in
-        predictions while maintaining an expected value around 0.5.
-
-        The probability varies based on observable features (objects visible,
-        containers open, etc.) but cannot actually detect false beliefs.
+        Reactive helper has no inference capability.
+        Returns random values centered around 0.5.
 
         Args:
-            episode_step: Optional episode step with observation context
+            episode_step: Optional episode step (mostly unused)
 
         Returns:
-            Uninformed probability score in [0, 1] with some variance
+            Random probability score in [0.2, 0.8]
         """
-        self._step_count += 1
+        # Pure random baseline with some variance
+        base = 0.5
+        noise = self.rng.normal(0, 0.2)
 
-        # Base probability is around 0.5 (random chance)
-        base_prob = 0.5
+        # Small adjustment based on timestep (later = slightly more likely)
+        time_adjustment = 0.0
+        if episode_step is not None and episode_step.timestep > 10:
+            time_adjustment = 0.05
 
-        # Add small variance based on step count and random noise
-        # This creates realistic variance in predictions without actual detection
-        noise = self.rng.normal(0, 0.15)
-
-        # Use observable features to create more realistic variance
-        feature_adjustment = 0.0
-        if episode_step is not None:
-            # More visible objects = slightly lower false belief probability
-            # (heuristic: if human can see objects, less likely to have false belief)
-            num_visible = len(getattr(episode_step, 'visible_objects_h', []))
-            feature_adjustment = -0.02 * min(num_visible, 5)
-
-            # If intervention has occurred (tau passed), slightly increase probability
-            if episode_step.tau is not None and episode_step.timestep >= episode_step.tau:
-                feature_adjustment += 0.1
-
-        # Combine components and clamp to [0.1, 0.9]
-        confidence = base_prob + noise + feature_adjustment
+        confidence = base + noise + time_adjustment
         return max(0.1, min(0.9, confidence))
 
     def reset(self) -> None:

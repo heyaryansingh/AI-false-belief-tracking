@@ -1,10 +1,26 @@
-"""Table generation module for summarizing experiment results."""
+"""Table generation module for summarizing experiment results.
+
+# Fix: Comprehensive statistics table with CIs and sample sizes (Phase 10)
+# Fix: Pairwise comparisons with effect sizes and significance tests (Phase 10)
+"""
 
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 import pandas as pd
 import numpy as np
 from scipy import stats
+
+from .statistics import (
+    effect_size,
+    interpret_effect_size,
+    compute_confidence_interval,
+    compute_bootstrap_ci,
+    paired_ttest,
+    wilcoxon_test,
+    independent_ttest,
+    format_ci,
+    format_p_value,
+)
 
 
 class TableGenerator:
@@ -521,6 +537,186 @@ class TableGenerator:
             return (p_value, indicator)
         except Exception:
             return (1.0, "")
+
+    def generate_summary_statistics(
+        self,
+        raw_df: pd.DataFrame,
+        metrics: Optional[List[str]] = None,
+        format: str = "markdown",
+    ) -> str:
+        """Generate comprehensive summary statistics table with CIs.
+
+        # Fix: Comprehensive statistics table with CIs and sample sizes (Phase 10)
+
+        Args:
+            raw_df: Raw (non-aggregated) results DataFrame
+            metrics: List of metrics to include (default: key metrics)
+            format: Output format ('markdown' or 'latex')
+
+        Returns:
+            Formatted table string
+        """
+        if "model" not in raw_df.columns:
+            return self._empty_table("Summary Statistics", format)
+        
+        if metrics is None:
+            metrics = [
+                ("AUROC", "auroc"),
+                ("Detection Latency", "latency"),
+                ("Efficiency", "efficiency"),
+                ("Precision", "precision"),
+                ("Recall", "recall"),
+            ]
+        
+        rows = []
+        for model in raw_df["model"].unique():
+            model_df = raw_df[raw_df["model"] == model]
+            
+            row = {"Model": model}
+            
+            for metric_name, col in metrics:
+                if col in model_df.columns:
+                    values = model_df[col].dropna().values
+                    if len(values) > 0:
+                        ci_result = compute_bootstrap_ci(values, n_bootstrap=1000)
+                        row[f"{metric_name}"] = format_ci(
+                            ci_result["value"],
+                            ci_result["ci_lower"],
+                            ci_result["ci_upper"],
+                        )
+                        row[f"{metric_name} N"] = ci_result["n"]
+                    else:
+                        row[f"{metric_name}"] = "N/A"
+                        row[f"{metric_name} N"] = 0
+                else:
+                    row[f"{metric_name}"] = "N/A"
+                    row[f"{metric_name} N"] = 0
+            
+            rows.append(row)
+        
+        if not rows:
+            return self._empty_table("Summary Statistics", format)
+        
+        table_df = pd.DataFrame(rows)
+        return self._format_table(table_df, "Summary Statistics with 95% CI", format)
+
+    def generate_pairwise_comparisons(
+        self,
+        raw_df: pd.DataFrame,
+        metrics: Optional[List[str]] = None,
+        format: str = "markdown",
+    ) -> str:
+        """Generate pairwise comparison table with effect sizes and p-values.
+
+        # Fix: Pairwise comparisons with effect sizes and significance tests (Phase 10)
+
+        Args:
+            raw_df: Raw (non-aggregated) results DataFrame
+            metrics: List of metrics to compare (default: key metrics)
+            format: Output format ('markdown' or 'latex')
+
+        Returns:
+            Formatted table string
+        """
+        if "model" not in raw_df.columns:
+            return self._empty_table("Pairwise Comparisons", format)
+        
+        models = list(raw_df["model"].unique())
+        if len(models) < 2:
+            return self._empty_table("Pairwise Comparisons", format)
+        
+        if metrics is None:
+            metrics = [
+                ("AUROC", "auroc"),
+                ("Efficiency", "efficiency"),
+                ("Precision", "precision"),
+            ]
+        
+        rows = []
+        for i, model1 in enumerate(models):
+            for model2 in models[i+1:]:
+                df1 = raw_df[raw_df["model"] == model1]
+                df2 = raw_df[raw_df["model"] == model2]
+                
+                for metric_name, col in metrics:
+                    if col not in raw_df.columns:
+                        continue
+                    
+                    values1 = df1[col].dropna().values
+                    values2 = df2[col].dropna().values
+                    
+                    if len(values1) == 0 or len(values2) == 0:
+                        continue
+                    
+                    # Effect size
+                    d = effect_size(values1, values2)
+                    d_interp = interpret_effect_size(d)
+                    
+                    # Statistical tests
+                    ttest_result = independent_ttest(values1, values2)
+                    
+                    rows.append({
+                        "Comparison": f"{model1} vs {model2}",
+                        "Metric": metric_name,
+                        "Mean 1": f"{np.mean(values1):.3f}",
+                        "Mean 2": f"{np.mean(values2):.3f}",
+                        "Cohen's d": f"{d:.3f}" if not np.isnan(d) else "N/A",
+                        "Effect": d_interp,
+                        "p-value": format_p_value(ttest_result["p_value"]),
+                    })
+        
+        if not rows:
+            return self._empty_table("Pairwise Comparisons", format)
+        
+        table_df = pd.DataFrame(rows)
+        return self._format_table(table_df, "Pairwise Model Comparisons", format)
+
+    def generate_condition_comparison(
+        self,
+        raw_df: pd.DataFrame,
+        format: str = "markdown",
+    ) -> str:
+        """Generate condition comparison table.
+
+        Args:
+            raw_df: Raw (non-aggregated) results DataFrame
+            format: Output format ('markdown' or 'latex')
+
+        Returns:
+            Formatted table string
+        """
+        if "condition" not in raw_df.columns:
+            return self._empty_table("Condition Comparison", format)
+        
+        rows = []
+        for condition in raw_df["condition"].unique():
+            cond_df = raw_df[raw_df["condition"] == condition]
+            
+            row = {"Condition": condition, "N": len(cond_df)}
+            
+            # Key metrics
+            for metric_name, col in [("AUROC", "auroc"), ("Efficiency", "efficiency")]:
+                if col in cond_df.columns:
+                    values = cond_df[col].dropna().values
+                    if len(values) > 0:
+                        ci_result = compute_bootstrap_ci(values, n_bootstrap=1000)
+                        row[metric_name] = format_ci(
+                            ci_result["value"],
+                            ci_result["ci_lower"],
+                            ci_result["ci_upper"],
+                        )
+                    else:
+                        row[metric_name] = "N/A"
+                else:
+                    row[metric_name] = "N/A"
+            
+            rows.append(row)
+        
+        if not rows:
+            return self._empty_table("Condition Comparison", format)
+        
+        table_df = pd.DataFrame(rows)
+        return self._format_table(table_df, "Comparison Across Conditions", format)
 
 
 def generate_tables(

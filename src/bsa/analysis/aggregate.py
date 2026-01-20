@@ -1,4 +1,7 @@
-"""Aggregate and analyze results."""
+"""Aggregate and analyze results.
+
+# Fix: Bootstrap CI replaces SD for robust confidence bounds (Phase 10)
+"""
 
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -10,6 +13,13 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from ..common.config import load_config
+from .statistics import (
+    compute_bootstrap_ci,
+    compute_confidence_interval,
+    effect_size,
+    paired_ttest,
+    wilcoxon_test,
+)
 
 
 class AnalysisAggregator:
@@ -309,13 +319,15 @@ class AnalysisAggregator:
     def _aggregate_detection_metrics(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Aggregate false-belief detection metrics.
 
+        # Fix: Bootstrap CI replaces SD for robust confidence bounds (Phase 10)
+
         Args:
             df: Results DataFrame
 
         Returns:
-            Dictionary with aggregated detection metrics
+            Dictionary with aggregated detection metrics including bootstrap CIs
         """
-        return {
+        result = {
             "auroc_mean": self._safe_mean(df, "false_belief_detection_auroc"),
             "auroc_std": self._safe_std(df, "false_belief_detection_auroc"),
             "latency_mean": self._safe_mean(df, "false_belief_detection_latency"),
@@ -323,6 +335,46 @@ class AnalysisAggregator:
             "fpr_mean": self._safe_mean(df, "false_belief_detection_fpr"),
             "fpr_std": self._safe_std(df, "false_belief_detection_fpr"),
         }
+        
+        # Fix: Add bootstrap CI for AUROC (Phase 10)
+        if "false_belief_detection_auroc" in df.columns:
+            auroc_values = df["false_belief_detection_auroc"].dropna().values
+            if len(auroc_values) > 0:
+                ci_result = compute_bootstrap_ci(
+                    auroc_values, 
+                    statistic='mean',
+                    n_bootstrap=1000,  # Faster for aggregation
+                    confidence_level=0.95,
+                )
+                result["auroc_ci_lower"] = ci_result["ci_lower"]
+                result["auroc_ci_upper"] = ci_result["ci_upper"]
+            else:
+                result["auroc_ci_lower"] = None
+                result["auroc_ci_upper"] = None
+        
+        # Fix: Add bootstrap CI for latency (Phase 10)
+        if "false_belief_detection_latency" in df.columns:
+            latency_values = df["false_belief_detection_latency"].dropna().values
+            if len(latency_values) > 0:
+                ci_result = compute_bootstrap_ci(
+                    latency_values,
+                    statistic='mean',
+                    n_bootstrap=1000,
+                    confidence_level=0.95,
+                )
+                result["latency_ci_lower"] = ci_result["ci_lower"]
+                result["latency_ci_upper"] = ci_result["ci_upper"]
+            else:
+                result["latency_ci_lower"] = None
+                result["latency_ci_upper"] = None
+        
+        # Fix: Add temporal metrics aggregation (Phase 10)
+        result["time_to_detection_mean"] = self._safe_mean(df, "time_to_detection")
+        result["time_to_detection_std"] = self._safe_std(df, "time_to_detection")
+        result["false_alarm_rate_mean"] = self._safe_mean(df, "false_alarm_rate")
+        result["false_alarm_rate_std"] = self._safe_std(df, "false_alarm_rate")
+        
+        return result
 
     def _aggregate_belief_tracking_metrics(self, df: pd.DataFrame) -> Dict[str, Any]:
         """Aggregate belief tracking metrics.
@@ -401,6 +453,190 @@ class AnalysisAggregator:
             return None
         
         return float(values.std())
+
+    def compute_pairwise_comparisons(
+        self,
+        df: pd.DataFrame,
+        model_col: str = "model",
+        metrics: Optional[List[str]] = None,
+    ) -> pd.DataFrame:
+        """Compute pairwise statistical comparisons between models.
+
+        # Fix: Pairwise comparisons with effect sizes and significance tests (Phase 10)
+
+        Args:
+            df: Results DataFrame
+            model_col: Column name for model identifier
+            metrics: List of metric columns to compare (default: all numeric)
+
+        Returns:
+            DataFrame with pairwise comparison statistics
+        """
+        if model_col not in df.columns:
+            return pd.DataFrame()
+        
+        models = df[model_col].unique()
+        if len(models) < 2:
+            return pd.DataFrame()
+        
+        # Default metrics to compare
+        if metrics is None:
+            metrics = [
+                "false_belief_detection_auroc",
+                "false_belief_detection_latency",
+                "task_efficiency",
+                "intervention_precision",
+                "intervention_recall",
+            ]
+        
+        # Filter to existing columns
+        metrics = [m for m in metrics if m in df.columns]
+        
+        comparisons = []
+        for i, model1 in enumerate(models):
+            for model2 in models[i+1:]:
+                df1 = df[df[model_col] == model1]
+                df2 = df[df[model_col] == model2]
+                
+                for metric in metrics:
+                    values1 = df1[metric].dropna().values
+                    values2 = df2[metric].dropna().values
+                    
+                    if len(values1) == 0 or len(values2) == 0:
+                        continue
+                    
+                    # Effect size (Cohen's d)
+                    d = effect_size(values1, values2)
+                    
+                    # Statistical tests
+                    # Use independent t-test since samples may not be paired
+                    from scipy.stats import ttest_ind, mannwhitneyu
+                    
+                    try:
+                        _, p_ttest = ttest_ind(values1, values2, equal_var=False)
+                    except:
+                        p_ttest = np.nan
+                    
+                    try:
+                        _, p_mann_whitney = mannwhitneyu(values1, values2, alternative='two-sided')
+                    except:
+                        p_mann_whitney = np.nan
+                    
+                    comparisons.append({
+                        "model_1": model1,
+                        "model_2": model2,
+                        "metric": metric,
+                        "mean_1": np.mean(values1),
+                        "mean_2": np.mean(values2),
+                        "effect_size": d,
+                        "effect_interpretation": self._interpret_effect_size(d),
+                        "p_value_ttest": p_ttest,
+                        "p_value_mann_whitney": p_mann_whitney,
+                        "significant_ttest": p_ttest < 0.05 if not np.isnan(p_ttest) else False,
+                        "significant_mann_whitney": p_mann_whitney < 0.05 if not np.isnan(p_mann_whitney) else False,
+                        "n_1": len(values1),
+                        "n_2": len(values2),
+                    })
+        
+        return pd.DataFrame(comparisons)
+
+    def _interpret_effect_size(self, d: float) -> str:
+        """Interpret Cohen's d effect size.
+
+        Args:
+            d: Cohen's d value
+
+        Returns:
+            String interpretation
+        """
+        if np.isnan(d):
+            return "undefined"
+        abs_d = abs(d)
+        if abs_d < 0.2:
+            return "negligible"
+        elif abs_d < 0.5:
+            return "small"
+        elif abs_d < 0.8:
+            return "medium"
+        else:
+            return "large"
+
+    def aggregate_with_bootstrap_ci(
+        self,
+        df: pd.DataFrame,
+        group_by: Optional[List[str]] = None,
+        metrics: Optional[List[str]] = None,
+        n_bootstrap: int = 1000,
+    ) -> pd.DataFrame:
+        """Aggregate metrics with bootstrap confidence intervals.
+
+        # Fix: Bootstrap CI replaces SD for robust confidence bounds (Phase 10)
+
+        Args:
+            df: Results DataFrame
+            group_by: Columns to group by (default: ['model', 'condition'])
+            metrics: Specific metrics to aggregate (default: all numeric)
+            n_bootstrap: Number of bootstrap samples
+
+        Returns:
+            DataFrame with aggregated statistics including bootstrap CIs
+        """
+        if group_by is None:
+            group_by = ["model", "condition"]
+        
+        group_by = [col for col in group_by if col in df.columns]
+        
+        if metrics is None:
+            metrics = df.select_dtypes(include=[np.number]).columns.tolist()
+        
+        metrics = [m for m in metrics if m in df.columns]
+        
+        results = []
+        
+        if not group_by:
+            # Aggregate all
+            row = {}
+            for metric in metrics:
+                values = df[metric].dropna().values
+                ci_result = compute_bootstrap_ci(
+                    values, 
+                    n_bootstrap=n_bootstrap,
+                    confidence_level=0.95,
+                )
+                row[f"{metric}_mean"] = ci_result["value"]
+                row[f"{metric}_ci_lower"] = ci_result["ci_lower"]
+                row[f"{metric}_ci_upper"] = ci_result["ci_upper"]
+                row[f"{metric}_std"] = ci_result["std"]
+                row[f"{metric}_n"] = ci_result["n"]
+            results.append(row)
+        else:
+            for name, group_df in df.groupby(group_by):
+                row = {}
+                
+                # Add group identifiers
+                if isinstance(name, tuple):
+                    for i, col in enumerate(group_by):
+                        row[col] = name[i]
+                else:
+                    row[group_by[0]] = name
+                
+                # Compute bootstrap CI for each metric
+                for metric in metrics:
+                    values = group_df[metric].dropna().values
+                    ci_result = compute_bootstrap_ci(
+                        values,
+                        n_bootstrap=n_bootstrap,
+                        confidence_level=0.95,
+                    )
+                    row[f"{metric}_mean"] = ci_result["value"]
+                    row[f"{metric}_ci_lower"] = ci_result["ci_lower"]
+                    row[f"{metric}_ci_upper"] = ci_result["ci_upper"]
+                    row[f"{metric}_std"] = ci_result["std"]
+                    row[f"{metric}_n"] = ci_result["n"]
+                
+                results.append(row)
+        
+        return pd.DataFrame(results)
 
 
 def aggregate_results(

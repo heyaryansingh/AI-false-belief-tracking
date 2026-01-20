@@ -1,0 +1,69 @@
+# Phase 9 Test Configuration
+# Quick test run to verify fixes work at scale
+
+experiment:
+  name: "phase9_test"
+
+  # Models to test
+  models:
+    - "reactive"
+    - "goal_only"
+    - "belief_pf"
+
+  # Conditions to test
+  conditions:
+    - "control"
+    - "false_belief"
+    - "seen_relocation"
+
+  # Fewer runs for quick testing (5 instead of 50)
+  num_runs: 5
+
+  # Seed for reproducibility
+  seed: 2026
+
+  # Environment
+  env_type: "gridhouse"
+
+  # Output directory
+  output_dir: "results/metrics/phase9_test"
+
+# Generator configuration
+generator:
+  env_type: "gridhouse"
+
+  # Smaller episode count for testing (500 instead of 10000)
+  num_episodes: 500
+
+  # Intervention parameters
+  tau_range: [5, 20]
+  drift_probability: 0.5
+  occlusion_severity: 0.5
+
+  # Output
+  output_format: "parquet"
+  output_dir: "data/episodes/phase9_test"
+  tasks: null
+
+# Analysis configuration
+analysis:
+  input_dir: "results/metrics/phase9_test"
+  output_dir: "results/analysis/phase9_test"
+
+  statistics:
+    confidence_interval: 0.95
+    bootstrap_samples: 100
+
+  plots:
+    - type: "detection_auroc"
+      filename: "detection_auroc.png"
+    - type: "detection_latency"
+      filename: "detection_latency.png"
+    - type: "task_performance"
+      filename: "task_performance.png"
+
+  tables:
+    - type: "summary"
+      filename_md: "summary_table.md"
+    - type: "detection"
+      filename_md: "detection_table.md"

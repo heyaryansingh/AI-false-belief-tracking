@@ -1,94 +1,53 @@
 # Project State
 
-## Current Position
+## Current Phase
+**Phase 10: Statistical Strengthening and Publication Readiness**
 
-**Phase**: 7 (Research Execution)
-**Plan**: 3 of 3 complete
-**Status**: Phase 7 Complete - All research execution, analysis, and paper writing finished
+## Status
+- **Started**: 2025-01-20
+- **Completed**: 2025-01-20
+- **Status**: ✅ COMPLETED
+- **Priority**: Critical - Required for publication readiness
+- **Prerequisites**: Phase 9 (Data & Methodology Fixes) completed ✅
 
-Progress: [==========] 100%
+## Context
+The research project "Belief-Sensitive Embodied Assistance Under Object-Centered False Belief" has a working experimental pipeline but contains statistical flaws, metric design issues, and missing validations that need to be addressed before publication.
 
-## Accumulated Decisions
+## Key Issues Identified
+1. AUROC variance is unrealistically high (σ = 0.409) suggesting unstable sampling
+2. Efficiency metric identical across all models (0.815) - likely shared/cached
+3. Missing temporal evaluation metrics (detection latency, time-to-detection)
+4. No statistical significance testing or effect sizes
+5. Missing intermediate belief conditions (only control and false_belief)
+6. No visual diagnostics for belief inference
+7. Inadequate documentation of methodology changes
 
-- GridHouse as fallback simulator (ensures reproducibility)
-- Particle filter for belief tracking (enables online inference)
-- Config-driven experiments (enables large-scale automation)
-- Parquet for episode storage (efficient, schema-enforced)
-- Python package structure with type hints
-- Deterministic seeding throughout
-- Virtual environment setup for VirtualHome compatibility (Python 3.9-3.11, NumPy <2.0)
-- VirtualHome as optional dependency (GridHouse fallback always available)
-- 10,000 episodes with 50 runs per config for statistical significance
-- 18 publication-quality visualization types for comprehensive analysis
+## Decisions Made
+- Will implement bootstrap confidence intervals for AUROC
+- Will add temporal metrics (TTD, detection latency)
+- Will recalculate efficiency per model/episode independently
+- Will add partial_false_belief condition (drift_probability = 0.5)
+- Will implement statistical reporting layer with CIs, effect sizes, p-values
+- Will add comprehensive visual diagnostics
 
-## Deferred Issues
+## Phase 10 Completed
 
-None
+All 12 tasks completed successfully:
+1. ✅ Statistical utilities module with bootstrap CI, effect sizes
+2. ✅ AUROC computation with per-episode aggregation
+3. ✅ Bootstrap CI in aggregation layer
+4. ✅ Efficiency metric verification
+5. ✅ Temporal metrics (TTD, false alarm rate)
+6. ✅ Partial false belief condition (3 conditions)
+7. ✅ Statistical reporting layer
+8. ✅ Visualization module (6 diagnostic plots)
+9. ✅ Experiment runner updates
+10. ✅ Change documentation generator
+11. ✅ Analysis scripts
+12. ✅ Integration testing
 
-## Blockers/Concerns
-
-None - Phase 7 Plan 2 complete with comprehensive visualizations
-
-## Phase History
-
-Phase 1-6: Infrastructure Complete
-- All core components implemented
-- All tests passing
-- CI workflow configured
-
-Phase 7 (Research Execution):
-1. Plan 07-01: Large-Scale Experiment Execution - COMPLETE
-   - 9,960 episodes generated
-   - 450 experiment runs executed
-   - 3 models (reactive, goal_only, belief_pf)
-   - 3 conditions (control, false_belief, seen_relocation)
-   - Analysis pipeline executed with figures, tables, and reports
-
-2. Plan 07-02: Comprehensive Analysis & Visualization - COMPLETE
-   - Enhanced plotting module with 18 visualization types
-   - Created comprehensive analysis configuration
-   - Generated 18 publication-quality figures
-   - Generated 8 tables (Markdown + LaTeX)
-   - Statistical significance analysis included
-
-3. Plan 07-03: Paper Writing - COMPLETE
-   - Comprehensive data analysis document created
-   - Full research paper written (~4000 words)
-   - Figures and tables organized
-   - Publication-ready quality
-
-**Phase 7 Complete!** All research execution, analysis, and paper writing finished.
-
-## Session Continuity
-
-Last session: 2026-01-17 21:15
-Stopped at: Completed 07-02-PLAN.md (visualizations generated)
-Resume file: None
-
-## Data Collected
-
-- Episodes: 9,960 in data/episodes/large_scale/
-- Metrics: results/metrics/large_scale_research/results.parquet (450 rows)
-- Figures (comprehensive): 18 plots in results/analysis/figures/
-- Tables (comprehensive): 8 files in results/analysis/tables/
-- Manifest: results/analysis/manifest.json
-
-## Key Outputs
-
-### Visualization Types Generated:
-1. Detection AUROC (basic, detailed, by condition)
-2. Detection latency (histogram, CDF, boxplot)
-3. Task performance (basic, detailed with violin plots)
-4. Intervention quality (bar charts, scatter, timing dist)
-5. Belief tracking (timeline, goal inference by condition)
-6. Comparison heatmaps (model, condition, significance)
-7. Ablation (tau effect)
-8. Summary figure (9-panel comprehensive)
-
-### Files Modified:
-- src/bsa/viz/plots.py (enhanced with 18 plot types)
-- configs/analysis/comprehensive.yaml (new)
-
-## Alignment Status
-
-On track. All visualizations generated successfully. Ready for paper writing phase.
+## Next Steps
+1. Run full-scale experiments: `python scripts/run_phase9_experiments.py --episodes 100 --runs 5`
+2. Review METHODOLOGY_CHANGES.md
+3. Update research paper with new results
+4. Prepare for publication
