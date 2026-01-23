@@ -167,7 +167,7 @@ If you use this repository in your research, please cite:
 ```bibtex
 @software{belief_assistance_research,
   title = {Belief-Sensitive Embodied Assistance Research},
-  author = {Your Name},
+  author = Aryan Singh,
   year = {2024},
   url = {https://github.com/heyaryansingh/AI-false-belief-tracking}
 }
