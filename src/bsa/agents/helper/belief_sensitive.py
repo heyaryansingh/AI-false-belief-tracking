@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 from ...common.types import Action, EpisodeStep, Observation, Task
 from ...envs.gridhouse.tasks import get_task, list_tasks
 from ...inference.belief import BeliefInference
+from ...inference.helper_belief import HelperWorldModel
 from .base import HelperAgent
 from .policies import InterventionPolicy
 
@@ -49,6 +50,7 @@ class BeliefSensitiveHelper(HelperAgent):
             task_list = [get_task(task_id) for task_id in list_tasks()]
 
         self.belief_inference = BeliefInference(task_list, num_particles, seed)
+        self.helper_world_model = HelperWorldModel()
         self.intervention_policy = InterventionPolicy()
         self.task_list = task_list
         self._last_false_belief_confidence = 0.0
@@ -145,9 +147,13 @@ class BeliefSensitiveHelper(HelperAgent):
             true_locations = episode_step.true_object_locations
 
         # Update belief inference
+        # Update belief inference
         self.belief_inference.update(
             human_action, observation, true_locations, episode_step
         )
+        
+        # Update helper's own world model
+        self.helper_world_model.update(observation, true_locations)
 
     def get_belief_state(self) -> Dict[str, Any]:
         """Return full belief state."""
@@ -187,10 +193,12 @@ class BeliefSensitiveHelper(HelperAgent):
         true_locations = episode_step.true_object_locations
 
         # Use belief inference to compute confidence
-        # This compares the particle filter's distribution over locations
-        # against the true locations
+        # FIXED: Pass HELPER's beliefs, not ground truth!
+        # This prevents data leakage.
+        helper_beliefs = self.helper_world_model.get_all_beliefs()
+        
         return self.belief_inference.compute_false_belief_confidence(
-            true_locations, human_believed_locations=None
+            helper_beliefs, human_believed_locations=None
         )
 
     def reset(self) -> None:

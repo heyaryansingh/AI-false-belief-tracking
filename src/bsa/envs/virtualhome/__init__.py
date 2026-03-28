@@ -1,30 +1,6 @@
-"""VirtualHome adapter."""
+"""VirtualHome environment package."""
 
-try:
-    from .env import VirtualHomeEnvironment
-    from .tasks import get_task, list_tasks
-    from .episode_generator import VirtualHomeEpisodeGenerator
-    from .recorder import VirtualHomeEpisodeRecorder
-    from .observability import (
-        get_scene_state,
-        get_agent_view,
-        get_object_trajectory,
-        analyze_observability,
-        visualize_episode,
-    )
+from .env import VirtualHomeEnvironment
+from .generator import VirtualHomeEpisodeGenerator
 
-    __all__ = [
-        "VirtualHomeEnvironment",
-        "get_task",
-        "list_tasks",
-        "VirtualHomeEpisodeGenerator",
-        "VirtualHomeEpisodeRecorder",
-        "get_scene_state",
-        "get_agent_view",
-        "get_object_trajectory",
-        "analyze_observability",
-        "visualize_episode",
-    ]
-except ImportError:
-    # VirtualHome not installed - export empty
-    __all__ = []
+__all__ = ["VirtualHomeEnvironment", "VirtualHomeEpisodeGenerator"]

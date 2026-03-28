@@ -52,25 +52,25 @@ class BeliefInference:
         )
 
     def detect_false_belief(
-        self, true_locations: Dict[str, ObjectLocation], threshold: float = 0.5
+        self, reference_locations: Dict[str, ObjectLocation], threshold: float = 0.5
     ) -> bool:
         """Detect if human has false belief about object locations.
 
         Uses probability-based detection with configurable threshold.
 
         Args:
-            true_locations: True object locations
+            reference_locations: Reference truth (e.g. helper beliefs)
             threshold: Detection threshold (0-1), higher = more conservative
 
         Returns:
             True if false belief detected with confidence above threshold
         """
-        confidence = self.compute_false_belief_confidence(true_locations)
+        confidence = self.compute_false_belief_confidence(reference_locations)
         return confidence >= threshold
 
     def compute_false_belief_confidence(
         self,
-        true_locations: Dict[str, ObjectLocation],
+        reference_locations: Dict[str, ObjectLocation],
         human_believed_locations: Optional[Dict[str, ObjectLocation]] = None,
     ) -> float:
         """Compute confidence score for false belief detection.
@@ -81,7 +81,7 @@ class BeliefInference:
         Let π_i(r) = P(object i in room r | observations) be the particle distribution.
         The false belief probability for object i is:
 
-            fb_i = 1 - π_i(true_room_i)
+            fb_i = 1 - π_i(reference_room_i)
 
         We compute an aggregate score using:
         1. Maximum over critical objects (most likely false belief)
@@ -94,7 +94,7 @@ class BeliefInference:
         - Episode-specific observation patterns
 
         Args:
-            true_locations: True object locations
+            reference_locations: Reference truth (e.g., Helper's beliefs or True locations)
             human_believed_locations: Unused (inference-only approach)
 
         Returns:
@@ -114,11 +114,13 @@ class BeliefInference:
 
         for task in self.task_list:
             for obj_id in task.critical_objects:
-                if obj_id not in true_locations:
+                # If we don't know where the object is (not in reference),
+                # we can't say the human is wrong.
+                if obj_id not in reference_locations:
                     continue
 
-                true_loc = true_locations[obj_id]
-                true_room = true_loc.room_id
+                ref_loc = reference_locations[obj_id]
+                ref_room = ref_loc.room_id
 
                 if obj_id not in object_beliefs:
                     fb_evidence.append(0.5)
@@ -128,7 +130,7 @@ class BeliefInference:
                 location_probs = object_beliefs[obj_id]
 
                 # P(false belief) = 1 - P(correct room)
-                prob_correct = location_probs.get(true_room, 0.0)
+                prob_correct = location_probs.get(ref_room, 0.0)
                 prob_false = 1.0 - prob_correct
 
                 # Compute entropy-based uncertainty

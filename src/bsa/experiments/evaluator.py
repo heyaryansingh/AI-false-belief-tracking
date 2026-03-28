@@ -223,6 +223,7 @@ class EpisodeEvaluator:
             "time_to_detection": time_to_detection,
             "false_alarm_rate": false_alarm_rate,
             "detection_timesteps": detection_timesteps,
+            "max_detection_score": max(scores) if scores else 0.0,
         }
 
     def _compute_belief_tracking_metrics(
